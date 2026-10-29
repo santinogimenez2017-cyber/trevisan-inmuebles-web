@@ -11,6 +11,20 @@
     <meta property="og:description" content="Casas, departamentos, terrenos y locales en venta y alquiler en Posadas, Misiones." />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://trevisan.com.ar/" />
+    <!-- Google Tag Manager (Módulo D). The id comes from VITE_GTM_ID (.env / Vercel env vars):
+         Vite substitutes it at build time. Empty or malformed → the snippet does nothing. -->
+    <script>
+      (function (w, d, s, l, i) {
+        if (!/^GTM-[A-Z0-9]+$/.test(i)) return;
+        w[l] = w[l] || [];
+        w[l].push({ 'gtm.start': new Date().getTime(), event: 'gtm.js' });
+        var f = d.getElementsByTagName(s)[0], j = d.createElement(s), dl = l != 'dataLayer' ? '&l=' + l : '';
+        j.async = true;
+        j.src = 'https://www.googletagmanager.com/gtm.js?id=' + i + dl;
+        f.parentNode.insertBefore(j, f);
+      })(window, document, 'script', 'dataLayer', '%VITE_GTM_ID%');
+    </script>
+    <!-- End Google Tag Manager -->
     <!-- Fonts: Google Fonts via preconnect -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -19,6 +33,9 @@
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%230f1f3d'/><text x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' font-size='16' font-weight='700' fill='%23e07b2a' font-family='serif'>T</text></svg>" />
   </head>
   <body>
+    <!-- Google Tag Manager (noscript) -->
+    <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=%VITE_GTM_ID%" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+    <!-- End Google Tag Manager (noscript) -->
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

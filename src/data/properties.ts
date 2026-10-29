@@ -5,6 +5,7 @@
 // Vite emits it as its own chunk and keeps it out of the initial bundle.
 
 import { useEffect, useMemo, useState } from 'react';
+import { fetchCustomProperties } from '@/lib/supabase';
 
 export type PropertyOperation = 'venta' | 'alquiler';
 export type PropertyType = 'casa' | 'departamento' | 'terreno' | 'local' | 'ph' | 'oficina';
@@ -43,10 +44,14 @@ export interface Property {
 let cache: Property[] | null = null;
 let pending: Promise<Property[]> | null = null;
 
-/** Loads the listings chunk once; later calls reuse the same promise. */
+/**
+ * Loads the listings once; later calls reuse the same promise. The scraped JSON is merged with the
+ * listings entered manually in Supabase (Módulo C, newest first); if Supabase is not configured or
+ * fails, `fetchCustomProperties()` resolves to [] and only the JSON is used.
+ */
 export function loadProperties(): Promise<Property[]> {
-  pending ??= import('./properties.json').then(mod => {
-    cache = mod.default as Property[];
+  pending ??= Promise.all([import('./properties.json'), fetchCustomProperties()]).then(([mod, custom]) => {
+    cache = [...custom, ...(mod.default as Property[])];
     return cache;
   });
   return pending;
