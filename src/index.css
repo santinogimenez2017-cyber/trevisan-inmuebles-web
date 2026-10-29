@@ -1,0 +1,258 @@
+@import "tailwindcss";
+
+/* Warm-light editorial palette. Contrast (WCAG) against #f3f1ec / #ebe8e0:
+   ink 16.5:1 · ink-soft 6.9:1 · accent-deep 5.9:1 · white on accent 4.77:1. */
+@theme {
+  --color-paper: #f3f1ec;
+  --color-linen: #ebe8e0;
+  --color-ink: #121316;
+  --color-ink-soft: #52525b;
+  --color-accent: #b9560d;       /* CTA fill (white text) */
+  --color-accent-deep: #9a4208;  /* small accent text on light surfaces */
+}
+
+@layer base {
+  :root {
+    --navy: #0b132b;
+    --navy-light: #1a2f58;
+    --orange: #e07b2a;
+    --orange-light: #f0954a;
+    --cream: #f8f5f0;
+    --text: #1a1a2e;
+    --muted: #6b7280;
+    --border: #e5e7eb;
+    --white: #ffffff;
+    --paper: #f3f1ec;
+    --linen: #ebe8e0;
+    --ink: #121316;
+    --ink-soft: #52525b;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* Native scroll — no overflow manipulation */
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, 'Segoe UI', system-ui, sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    overflow-x: hidden;
+  }
+
+  ::selection { background: rgba(185, 86, 13, 0.22); color: var(--ink); }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  /* ── Lenis (desktop only — the class is only added when Lenis runs) ── */
+  html.lenis, html.lenis body { height: auto; }
+  .lenis.lenis-smooth { scroll-behavior: auto !important; }
+  .lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior: contain; }
+  .lenis.lenis-stopped { overflow: hidden; }
+  .lenis.lenis-smooth iframe { pointer-events: none; }
+
+  /* Hero copy stays hidden until GSAP is ready (avoids a flash before the reveal).
+     A fail-safe in HeroSection removes the class if GSAP never loads. */
+  .hero-pending [data-hero] { visibility: hidden; }
+}
+
+@layer utilities {
+  /* Editorial serif: medium weight (Cormorant reads as print at 500, heavy at 700),
+     tight tracking and lining figures so prices/areas stay legible. */
+  .font-display {
+    font-family: 'Cormorant Garamond', 'Georgia', 'Times New Roman', serif;
+    font-weight: 500 !important;
+    letter-spacing: -0.012em;
+    font-variant-numeric: lining-nums;
+    text-wrap: balance;
+  }
+
+  /* Small-caps label used above headlines */
+  .eyebrow {
+    font-size: 0.6875rem;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+
+  /* Photos: no CSS distortion — natural aspect via object-fit: cover, high-quality resampling,
+     plus a subtle photographic grade to recover the contrast lost by CDN JPEG compression. */
+  .img-crisp {
+    image-rendering: high-quality;
+    image-rendering: -webkit-optimize-contrast;
+    filter: contrast(106%) brightness(97%) saturate(108%);
+    backface-visibility: hidden;
+  }
+
+  /* GPU-composited layers for FM animations */
+  .will-change-transform { will-change: transform; }
+  .will-change-opacity   { will-change: opacity; }
+
+  .text-navy   { color: var(--navy); }
+  .text-orange { color: var(--orange); }
+  .bg-navy     { background-color: var(--navy); }
+  .bg-orange   { background-color: var(--orange); }
+  .bg-cream    { background-color: var(--cream); }
+
+  /* Glass panel utility */
+  .glass-panel {
+    background: rgba(255, 255, 255, 0.9);                 /* bg-white/90 */
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(214, 211, 209, 0.6);           /* border-stone-300/60 */
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);                                    /* shadow-md */
+  }
+
+  .glass-light {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(214, 211, 209, 0.6);
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  }
+
+  .text-balance { text-wrap: balance; }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+
+  /* ── Shimmer CTA — GPU-composited highlight sweep on hover ─────────── */
+  /*
+      Pure CSS shimmer: a pseudo-element with a gradient sweeps across the
+      button on :hover. No JS, no layout paint, composited on GPU via
+      transform + opacity only. Transition is instant on mouse-enter so it
+      feels "live", slower on mouse-leave so it doesn't look glitchy.
+  */
+  .btn-shimmer {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+  }
+  .btn-shimmer::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      105deg,
+      transparent 30%,
+      rgba(255, 255, 255, 0.22) 50%,
+      transparent 70%
+    );
+    transform: translateX(-100%);
+    transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+    pointer-events: none;
+    will-change: transform;
+  }
+  .btn-shimmer:hover::after {
+    transform: translateX(100%);
+  }
+
+  /* ── Property card: spotlight border + border beam + metallic sheen ─────
+     The card is a 1px "frame" (padding) around a white face. Three light layers live in/under
+     that frame and are only visible on hover:
+       ::before  — champagne spotlight that follows the cursor (--mx/--my set from JS)
+       .card-beam — a slow comet orbiting the rim (transform-only animation → GPU, no repaint)
+       .card-sheen — soft specular highlight over the photo, also cursor-driven
+     Nothing here runs unless the card is hovered. */
+  .card-lux {
+    position: relative;
+    isolation: isolate;
+    background: rgba(214, 211, 209, 0.6);   /* stone-300/60 rim */
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --mx: 50%;
+    --my: 50%;
+  }
+  .card-lux::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    background: radial-gradient(
+      240px circle at var(--mx) var(--my),
+      rgba(250, 226, 178, 0.95),
+      rgba(224, 123, 42, 0.55) 40%,
+      transparent 72%
+    );
+  }
+  .card-lux:hover::before { opacity: 1; }
+
+  .card-beam {
+    position: absolute;
+    z-index: 1;
+    left: 50%;
+    top: 50%;
+    width: 240%;
+    aspect-ratio: 1;
+    margin-left: -120%;
+    margin-top: -120%;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    background: conic-gradient(
+      from 0deg,
+      transparent 0deg 262deg,
+      rgba(184, 119, 47, 0.0) 262deg,
+      rgba(224, 123, 42, 0.85) 322deg,
+      rgba(255, 244, 224, 1) 350deg,
+      transparent 360deg
+    );
+    animation: card-beam-spin 3.6s linear infinite;
+    animation-play-state: paused;
+    will-change: transform;
+    pointer-events: none;
+  }
+  .card-lux:hover .card-beam { opacity: 1; animation-play-state: running; }
+  @keyframes card-beam-spin { to { transform: rotate(360deg); } }
+
+  .card-face {
+    position: relative;
+    z-index: 2;
+    background: rgba(255, 255, 255, 0.9);   /* bg-white/90 */
+    border-radius: calc(1rem - 1px);
+    overflow: hidden;
+  }
+  .card-sheen {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    background:
+      radial-gradient(280px circle at var(--mx) var(--my), rgba(255, 255, 255, 0.26), transparent 62%),
+      linear-gradient(115deg, transparent 40%, rgba(255, 236, 205, 0.10) 50%, transparent 60%);
+  }
+  .card-lux:hover .card-sheen { opacity: 1; }
+
+  @media (prefers-reduced-motion: reduce), (hover: none) {
+    .card-beam { display: none; }
+  }
+
+  /* SplitText line masks: padding keeps descenders/ascenders of the serif unclipped */
+  .hero-line-mask {
+    padding: 0.1em 0 0.16em;
+    margin: -0.1em 0 -0.16em;
+  }
+
+  /* ── Mask-reveal clip helper ────────────────────────────────────────── */
+  /*
+      Used for word-by-word typographic mask reveal:
+      Parent has overflow:hidden; child translates from y:100% to y:0.
+  */
+  .mask-line {
+    overflow: hidden;
+    display: block;
+  }
+}
