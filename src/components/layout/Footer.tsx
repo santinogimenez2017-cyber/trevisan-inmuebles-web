@@ -40,9 +40,9 @@ export function Footer() {
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label={name}
-                  className="w-10 h-10 rounded-full bg-black/5 hover:bg-black/10 hover:scale-110 flex items-center justify-center transition-all duration-200"
+                  className="w-10 h-10 rounded-full bg-black/5 text-stone-700 hover:text-[#b9560d] hover:bg-[#b9560d]/10 hover:scale-110 flex items-center justify-center transition-all duration-200"
                 >
-                  <SocialIcon name={icon} size={24} />
+                  <SocialIcon name={icon} size={20} />
                 </a>
               ))}
             </div>
@@ -131,7 +131,7 @@ export function Footer() {
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 text-ink-soft hover:text-ink text-sm transition-colors"
                 >
-                  <SocialIcon name="whatsapp" size={16} />
+                  <SocialIcon name="whatsapp" size={16} className="text-accent-deep" />
                   <span>WhatsApp</span>
                 </a>
               </li>

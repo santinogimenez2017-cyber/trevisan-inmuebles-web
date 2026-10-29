@@ -176,7 +176,7 @@ function DesktopActions() {
         whileHover={{ scale: 1.04 }}
         whileTap={{ scale: 0.97 }}
       >
-        <SocialIcon name="whatsapp" size={18} />
+        <SocialIcon name="whatsapp" size={16} />
         <span>WhatsApp</span>
       </motion.a>
       <motion.a
@@ -213,7 +213,7 @@ function MobileSection() {
         rel="noopener noreferrer"
         className="flex items-center gap-2 text-ink-soft px-3 py-2"
       >
-        <SocialIcon name="whatsapp" size={18} />
+        <SocialIcon name="whatsapp" size={16} />
         <span className="text-sm">WhatsApp</span>
       </a>
       <a

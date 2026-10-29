@@ -9,9 +9,9 @@ const EXPO = [0.22, 1, 0.36, 1] as [number, number, number, number];
 
 const MAPS_URL = 'https://www.google.com/maps/search/?api=1&query=Roque+Gonz%C3%A1lez+1137+Posadas+Misiones';
 
-// Same call signature as a lucide icon, so it slots into CONTACT_ITEMS; renders the local PNG.
-function WhatsAppIcon({ size = 16 }: { size?: number; className?: string }) {
-  return <SocialIcon name="whatsapp" size={size + 6} />;
+// Same call signature as a lucide icon, so it slots into CONTACT_ITEMS; renders the vector glyph.
+function WhatsAppIcon({ size = 16, className }: { size?: number; className?: string }) {
+  return <SocialIcon name="whatsapp" size={size} className={className} />;
 }
 
 const CONTACT_ITEMS = [
@@ -110,7 +110,7 @@ export function ContactSection() {
               whileHover={{ scale: 1.05, backgroundColor: '#0f6038' }}
               whileTap={{ scale: 0.97 }}
             >
-              <SocialIcon name="whatsapp" size={22} />
+              <SocialIcon name="whatsapp" size={20} />
               Consultar por WhatsApp
             </motion.a>
           </motion.div>
