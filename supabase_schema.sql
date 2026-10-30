@@ -51,6 +51,8 @@ alter table public.properties add column if not exists features     text[] not n
 alter table public.properties add column if not exists parking      int  not null default 0;
 alter table public.properties add column if not exists badge        text;
 alter table public.properties add column if not exists status       text not null default 'disponible';
+alter table public.properties add column if not exists latitude     numeric;
+alter table public.properties add column if not exists longitude    numeric;
 
 -- status is now the publication state (the site filters status = 'disponible'): empty values become 'disponible'.
 update public.properties set status = 'disponible' where status is null or btrim(status) = '';

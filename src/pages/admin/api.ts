@@ -28,6 +28,8 @@ export interface PropertyInput {
   features: string[];
   featured: boolean;
   badge: string | null;
+  latitude: number | null;
+  longitude: number | null;
 }
 
 const fail = (message: string): never => { throw new Error(message); };

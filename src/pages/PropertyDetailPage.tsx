@@ -14,6 +14,7 @@ import { sendContact } from '@/lib/contact';
 import { scrollToTop } from '@/lib/scroll';
 import { PropertyCard } from '@/components/property/PropertyCard';
 import { Lightbox } from '@/components/property/Lightbox';
+import { PropertyMap } from '@/components/property/PropertyMap';
 
 const EXPO = [0.22, 1, 0.36, 1] as [number, number, number, number];
 
@@ -231,7 +232,7 @@ export default function PropertyDetailPage() {
 
               {/* Features */}
               {property.features.length > 0 && (
-                <div>
+                <div className="mb-6">
                   <h2 className="font-semibold text-ink mb-3">Características</h2>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {property.features.map(f => (
@@ -243,6 +244,9 @@ export default function PropertyDetailPage() {
                   </div>
                 </div>
               )}
+
+              {/* Map */}
+              <PropertyMap property={property} />
             </motion.div>
           </div>
 

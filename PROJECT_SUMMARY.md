@@ -11,6 +11,7 @@ Catálogo público de propiedades en venta y alquiler, con un panel de administr
 > | `eb122cb` | Panel `/admin`: login con Supabase Auth, tabla `admins`, RLS, alta/edición/estado/borrado de propiedades |
 > | `572af63` | Subida de fotos: bucket público `property-images`, dropzone con miniaturas, reordenar, quitar, portada |
 > | `a81ddc7` | **Consultas:** tabla `contacts` con RLS (los visitantes solo insertan) y pestaña **Consultas** en `/admin` · **Email:** función serverless `api/contact.ts` (Resend) que avisa cada consulta a `VITE_CONTACT_EMAIL`, con `contacts` como respaldo · **Analítica:** `whatsapp_click` en el Navbar, `VITE_GTM_ID` y `VITE_GA4_ID` leídos solo en `vite.config.ts` con validación de formato · `README.md` reescrito y `.env.example` completo |
+> | *(este commit)* | **Mapa interactivo:** componente `PropertyMap.tsx` con `iframe` responsivo de Google Maps Embed (sin API key); usa coordenadas `latitude`/`longitude` si existen, y si no, la dirección concatenada · Columnas `latitude numeric` y `longitude numeric` (opcionales) en `public.properties` · Tipos `Property` y `PropertyRow` actualizados · Inputs Latitud / Longitud en `PropertyForm` · `PropertyMap` integrado en `PropertyDetailPage`, debajo de Características |
 >
 > **Índice rápido:** rutas → 3.1 · hooks y funciones de datos → 3.2 · flujo de una consulta → 3.4 · tablas y RLS → 4 · eventos → 5 · bundle → 6 · despliegue → 7 · qué está verificado → 8.
 
@@ -125,7 +126,8 @@ Trevisan 3D/
     │   │   └── SmoothScroll.tsx        # Monta Lenis solo con puntero fino y sin reduced-motion
     │   ├── property/
     │   │   ├── PropertyCard.tsx        # Tarjeta de propiedad
-    │   │   └── Lightbox.tsx            # Galería a pantalla completa
+    │   │   ├── Lightbox.tsx            # Galería a pantalla completa
+    │   │   └── PropertyMap.tsx         # Mapa Google Maps Embed (sin API key) para el detalle de la propiedad
     │   ├── sections/                   # Secciones de la home
     │   │   ├── FeaturedSection.tsx     # Destacadas
     │   │   ├── CategoriesSection.tsx   # Categorías
@@ -268,6 +270,8 @@ Fuente: `supabase_schema.sql` (idempotente: se puede volver a ejecutar sin rompe
 | `featured` | `boolean` | NOT NULL, default `false` (destacada en la home) |
 | `badge` | `text` | Nullable (insignia de la tarjeta: "A estrenar", "En pozo") |
 | `status` | `text` | NOT NULL, default `'disponible'`. CHECK en (`disponible`, `reservado`, `vendido`, `alquilado`), declarado `NOT VALID` (se exige en filas nuevas/editadas sin revalidar las antiguas) |
+| `latitude` | `numeric` | Nullable. Latitud geográfica para el mapa en la ficha |
+| `longitude` | `numeric` | Nullable. Longitud geográfica para el mapa en la ficha |
 | `created_at` | `timestamptz` | NOT NULL, default `now()` |
 
 - **Índices:** `properties_created_at_idx` (`created_at desc`), `properties_status_idx` (`status`), `properties_slug_key` (único parcial sobre `slug`).
@@ -492,6 +496,6 @@ Cada evento se empuja a `window.dataLayer` (se crea si no existe, por lo que no 
 **Pendientes conocidos**
 
 - Variables de entorno en Vercel: `VITE_CONTACT_EMAIL`, `RESEND_API_KEY` y, con dominio verificado, `RESEND_FROM`; más `VITE_GTM_ID` y/o `VITE_GA4_ID`.
-- Ejecutar de nuevo `supabase_schema.sql` en Supabase para crear la tabla `contacts` y sus políticas.
+- Ejecutar de nuevo `supabase_schema.sql` en Supabase para agregar las columnas `latitude` y `longitude` a `public.properties` (el script es idempotente: `ADD COLUMN IF NOT EXISTS`).
 - Protección anti-spam en `/api/contact` y en el INSERT público de `contacts`.
 - IDs reales de GTM y GA4 (esta documentación solo registra los placeholders).

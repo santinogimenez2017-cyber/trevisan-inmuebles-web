@@ -32,6 +32,7 @@ interface FormState {
   neighborhood: string; city: string; address: string; bedrooms: string; bathrooms: string;
   covered_area: string; total_area: string; parking: string; description: string;
   features: string; images: string[]; featured: boolean; badge: string;
+  latitude: string; longitude: string;
 }
 
 const toForm = (r: PropertyRow | null): FormState => ({
@@ -54,6 +55,8 @@ const toForm = (r: PropertyRow | null): FormState => ({
   images: r?.images ?? [],
   featured: r?.featured ?? false,
   badge: r?.badge ?? '',
+  latitude: r?.latitude != null ? String(r.latitude) : '',
+  longitude: r?.longitude != null ? String(r.longitude) : '',
 });
 
 /** Create (row = null) / edit modal. Calls `onSaved` with the stored row; `onClose` discards. */
@@ -82,6 +85,8 @@ export function PropertyForm({ row, onSaved, onClose }: {
     e.preventDefault();
     const images = f.images;
     const numbers = [f.price, f.bedrooms, f.bathrooms, f.covered_area, f.total_area, f.parking].map(num);
+    const lat = f.latitude.trim() === '' ? null : Number(f.latitude);
+    const lng = f.longitude.trim() === '' ? null : Number(f.longitude);
     if (uploading) return setError('Esperá a que terminen de subirse las fotos.');
     if (!f.title.trim()) return setError('El título es obligatorio.');
     if (numbers.some(n => !Number.isFinite(n) || n < 0)) return setError('Los números no pueden ser negativos ni inválidos.');
@@ -110,6 +115,8 @@ export function PropertyForm({ row, onSaved, onClose }: {
       features: lines(f.features),
       featured: f.featured,
       badge: f.badge.trim() || null,
+      latitude: lat,
+      longitude: lng,
     };
     setSaving(true);
     setError('');
@@ -161,6 +168,8 @@ export function PropertyForm({ row, onSaved, onClose }: {
           <Field label="Cocheras"><input type="number" min="0" className={fieldClass} {...text('parking')} /></Field>
           <Field label="m² cubiertos"><input type="number" min="0" step="any" className={fieldClass} {...text('covered_area')} /></Field>
           <Field label="m² totales"><input type="number" min="0" step="any" className={fieldClass} {...text('total_area')} /></Field>
+          <Field label="Latitud" hint="Opcional — para el mapa en la ficha"><input type="number" step="any" className={fieldClass} {...text('latitude')} placeholder="-27.3621" /></Field>
+          <Field label="Longitud" hint="Opcional — para el mapa en la ficha"><input type="number" step="any" className={fieldClass} {...text('longitude')} placeholder="-55.9009" /></Field>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

@@ -75,6 +75,8 @@ export interface PropertyRow {
   featured: boolean;
   badge?: string | null;
   status: string;
+  latitude?: number | null;
+  longitude?: number | null;
   created_at?: string;
 }
 
@@ -112,6 +114,8 @@ function toProperty(r: PropertyRow): Property {
     featured: r.featured ?? false,
     // DB `status` is the publication state ('disponible'); the card badge text is `badge`.
     status: r.badge || undefined,
+    latitude: r.latitude ?? null,
+    longitude: r.longitude ?? null,
     createdAt: r.created_at ?? new Date().toISOString(),
   };
 }

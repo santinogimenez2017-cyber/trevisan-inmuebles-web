@@ -27,6 +27,8 @@ export interface Property {
   images: string[];    // the first one is the cover
   featured: boolean;
   status?: string;     // card badge, e.g. "A estrenar", "En pozo"
+  latitude?: number | null;
+  longitude?: number | null;
   createdAt: string;
 }
 
