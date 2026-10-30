@@ -6,7 +6,7 @@
 // local JSON. The SDK is loaded with a dynamic import() so it never weighs on the initial bundle.
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Currency, Property, PropertyOperation, PropertyType } from '@/data/properties';
+import type { Currency, Property, PropertyType } from '@/data/properties';
 
 // Accepts the bare project URL or a pasted REST endpoint (".../rest/v1/"): the SDK appends /rest/v1 itself.
 const URL = import.meta.env.VITE_SUPABASE_URL?.trim().replace(/\/+$/, '').replace(/\/rest\/v1$/, '');
@@ -17,58 +17,81 @@ export const isSupabaseConfigured = Boolean(URL && ANON_KEY);
 
 let client: Promise<SupabaseClient> | null = null;
 
+/**
+ * The shared Supabase client instance. It is `null` until the SDK chunk has been loaded (the SDK is
+ * lazy so it stays out of the initial bundle); `getSupabase()` / `fetchCustomProperties()` populate it.
+ * It is an ES live binding, so importers always see the current value. Prefer `await getSupabase()`
+ * when you need a guaranteed instance.
+ */
+export let supabase: SupabaseClient | null = null;
+
 /** Lazily creates the singleton client. Throws if the env vars are missing. */
 export function getSupabase(): Promise<SupabaseClient> {
   if (!URL || !ANON_KEY) return Promise.reject(new Error('Supabase is not configured'));
-  client ??= import('@supabase/supabase-js').then(({ createClient }) =>
-    createClient(URL, ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false } }),
-  );
+  client ??= import('@supabase/supabase-js').then(({ createClient }) => {
+    supabase = createClient(URL, ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+    return supabase;
+  });
   return client;
 }
 
 /** Row shape of public.properties (supabase_schema.sql). */
-interface PropertyRow {
+export interface PropertyRow {
   id: string;
   title: string;
-  price: number | null;
-  location: string | null;
-  operation: PropertyOperation;
-  type: PropertyType;
-  images: string[] | null;
-  created_at: string;
-  currency?: Currency | null;
-  description?: string | null;
-  bedrooms?: number | null;
-  bathrooms?: number | null;
-  area?: number | null;
-  featured?: boolean | null;
+  slug: string;
+  operation: 'venta' | 'alquiler';
+  property_type: string;
+  price: number;
+  currency: string;
+  location: string;
+  address?: string;
+  bedrooms: number;
+  bathrooms: number;
+  covered_area?: number;
+  total_area: number;
+  description?: string;
+  images: string[];
+  featured: boolean;
+  status: string;
+  created_at?: string;
+  /** Legacy v1 column names, still read while the old schema is deployed. */
+  type?: string;
+  area?: number;
 }
+
+const PROPERTY_TYPES: readonly PropertyType[] = ['casa', 'departamento', 'terreno', 'local', 'ph', 'oficina'];
 
 const slugify = (s: string) =>
   s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 
 function toProperty(r: PropertyRow): Property {
   const location = (r.location ?? '').trim();
+  const rawType = (r.property_type ?? r.type ?? '').toLowerCase();
+  const type = PROPERTY_TYPES.find(t => t === rawType) ?? 'casa';
+  const area = r.total_area ?? r.area;
   return {
     id: `sb-${r.id}`,
-    slug: `${slugify(r.title) || 'propiedad'}-${r.id.slice(0, 8)}`,
+    slug: r.slug?.trim() || `${slugify(r.title) || 'propiedad'}-${r.id.slice(0, 8)}`,
     operation: r.operation,
-    type: r.type,
+    type,
     title: r.title,
-    address: location,
+    address: r.address?.trim() || location,
     neighborhood: location,
     city: '',
     province: 'Misiones',
     price: r.price ?? 0,
-    currency: r.currency ?? 'USD',
-    bedrooms: r.bedrooms ?? undefined,
-    bathrooms: r.bathrooms ?? undefined,
-    area: r.area ?? undefined,
+    currency: (r.currency === 'ARS' ? 'ARS' : 'USD') as Currency,
+    bedrooms: r.bedrooms || undefined,
+    bathrooms: r.bathrooms || undefined,
+    area: area || undefined,
+    coveredArea: r.covered_area || undefined,
     description: r.description ?? '',
     features: [],
     images: r.images ?? [],
     featured: r.featured ?? false,
-    createdAt: r.created_at,
+    status: r.status || undefined,
+    createdAt: r.created_at ?? new Date().toISOString(),
   };
 }
 
