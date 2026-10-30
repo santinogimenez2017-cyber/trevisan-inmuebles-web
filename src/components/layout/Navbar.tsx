@@ -1,10 +1,11 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Phone, Menu, X } from 'lucide-react';
 import { SocialIcon } from '@/components/ui/SocialIcon';
 import { PHONE_TEL, whatsappUrl } from '@/data/contact';
 import { useSectionLink as useSectionNav } from '@/lib/useSectionLink';
+import { scrollToTop, scrollToTopSmooth } from '@/lib/scroll';
 
 // Each nav link stores a pathname and optionally a query param key+value.
 // This lets us detect which link is "active" by comparing both.
@@ -31,7 +32,20 @@ export function Navbar() {
   const [open, setOpen]       = React.useState(false);
   const [scrolled, setScrolled] = React.useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
   const isHome   = location.pathname === '/';
+
+  // Logo: on the home page scroll smoothly to the top (no reload); from any other page go home, at the top.
+  // scroll.ts helpers are used instead of raw window.scrollTo so Lenis (desktop smooth scroll) stays in sync.
+  const handleLogoClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    if (location.pathname === '/') {
+      scrollToTopSmooth();
+    } else {
+      navigate('/');
+      scrollToTop();
+    }
+  };
 
   React.useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 60);
@@ -57,7 +71,7 @@ export function Navbar() {
         <div className="flex items-center justify-between h-16 lg:h-20">
 
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 shrink-0">
+          <Link to="/" onClick={handleLogoClick} className="flex items-center gap-2 shrink-0">
             <motion.div
               className="flex flex-col leading-none"
               whileHover={{ scale: 1.03 }}

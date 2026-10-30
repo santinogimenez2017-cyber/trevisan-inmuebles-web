@@ -14,6 +14,11 @@ export function registerScroller(instance: SmoothScroller | null) {
   scroller = instance;
 }
 
+export function scrollToTopSmooth() {
+  if (scroller) scroller.scrollTo(0);
+  else window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
 export function scrollToTop() {
   if (scroller) scroller.scrollTo(0, { immediate: true, force: true });
   else window.scrollTo(0, 0);
