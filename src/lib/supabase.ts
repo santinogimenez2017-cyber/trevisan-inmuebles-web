@@ -33,6 +33,24 @@ export function getSupabase(): Promise<SupabaseClient> {
   return client;
 }
 
+let adminClient: Promise<SupabaseClient> | null = null;
+
+/**
+ * Client for the /admin panel: same project and anon key, but it keeps the Supabase Auth session
+ * (localStorage, own storage key) so writes carry the signed-in user's JWT. What that user may do is
+ * decided by the RLS policies in supabase_schema.sql, not by this code. The public client above never
+ * stores a session, so the public site always reads as `anon`.
+ */
+export function getAdminSupabase(): Promise<SupabaseClient> {
+  if (!URL || !ANON_KEY) return Promise.reject(new Error('Supabase is not configured'));
+  adminClient ??= import('@supabase/supabase-js').then(({ createClient }) =>
+    createClient(URL, ANON_KEY, {
+      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storageKey: 'trevisan-admin-auth' },
+    }),
+  );
+  return adminClient;
+}
+
 /** Row shape of public.properties (supabase_schema.sql). */
 export interface PropertyRow {
   id: string;

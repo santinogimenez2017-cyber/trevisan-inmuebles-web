@@ -91,14 +91,52 @@ create index if not exists properties_created_at_idx on public.properties (creat
 create index if not exists properties_status_idx on public.properties (status);
 create unique index if not exists properties_slug_key on public.properties (slug) where slug is not null and slug <> '';
 
--- Row Level Security: anyone (anon key) can READ; only the dashboard / service_role can write.
+-- status is the publication state. NOT VALID: enforced for new/edited rows without re-checking old ones.
+alter table public.properties drop constraint if exists properties_status_check;
+alter table public.properties add constraint properties_status_check
+  check (status in ('disponible', 'reservado', 'vendido', 'alquilado')) not valid;
+
+-- ── Admin panel (/admin) ─────────────────────────────────────────────────────────────────────
+-- Who can write is decided HERE, in the database (the anon key is public, so hiding buttons in the UI
+-- protects nothing). Admins are Supabase Auth users listed in public.admins.
+create table if not exists public.admins (
+  user_id uuid primary key references auth.users (id) on delete cascade
+);
+alter table public.admins enable row level security;   -- no policies: not readable through the API
+
+create or replace function public.is_admin() returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.admins where user_id = auth.uid())
+$$;
+revoke all on function public.is_admin() from public;
+revoke execute on function public.is_admin() from anon;
+grant execute on function public.is_admin() to authenticated;
+
+-- Row Level Security on properties:
+--   · anyone (anon key) can READ only the 'disponible' listings (what the public site shows);
+--   · admins can read ALL statuses and insert / update / delete.
 alter table public.properties enable row level security;
 
-drop policy if exists "Public read access" on public.properties;
-create policy "Public read access"
-  on public.properties for select
-  to anon, authenticated
-  using (true);
+grant select on public.properties to anon;
+grant select, insert, update, delete on public.properties to authenticated;
+
+drop policy if exists "Public read access"    on public.properties;
+drop policy if exists "Public read available" on public.properties;
+drop policy if exists "Admin read all"         on public.properties;
+drop policy if exists "Admin insert"           on public.properties;
+drop policy if exists "Admin update"           on public.properties;
+drop policy if exists "Admin delete"           on public.properties;
+
+create policy "Public read available" on public.properties for select to anon, authenticated
+  using (status = 'disponible');
+create policy "Admin read all"  on public.properties for select to authenticated using (public.is_admin());
+create policy "Admin insert"    on public.properties for insert to authenticated with check (public.is_admin());
+create policy "Admin update"    on public.properties for update to authenticated using (public.is_admin()) with check (public.is_admin());
+create policy "Admin delete"    on public.properties for delete to authenticated using (public.is_admin());
+
+-- Make yourself an admin (once): 1) Authentication → Users → Add user (email + password, "Auto Confirm"),
+-- 2) run, with your email:
+--   insert into public.admins (user_id) select id from auth.users where email = 'tu@email.com' on conflict do nothing;
 
 -- Example row (delete after testing):
 -- insert into public.properties

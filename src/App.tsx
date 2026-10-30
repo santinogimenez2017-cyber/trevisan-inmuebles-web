@@ -14,6 +14,8 @@ const loadListings = () => import('@/pages/ListingsPage');
 const loadDetail   = () => import('@/pages/PropertyDetailPage');
 const ListingsPage       = lazy(loadListings);
 const PropertyDetailPage = lazy(loadDetail);
+// Admin panel: its own chunk, only fetched when someone opens /admin (never prefetched).
+const AdminPage          = lazy(() => import('@/pages/admin/AdminPage'));
 
 // Warm both chunks shortly after first paint so navigating to them (and the card → detail
 // layoutId transition) doesn't wait on the network. No effect on native scrolling.
@@ -42,7 +44,18 @@ function Layout() {
   const location = useLocation();
   const { pathname } = location;
   const isHome = pathname === '/';
+  const isAdmin = pathname === '/admin' || pathname.startsWith('/admin/');
   const is404 = !isHome && !pathname.startsWith('/propiedades') && !pathname.startsWith('/propiedad/');
+
+  // The admin panel is a standalone screen: no site Navbar/Footer, no page transition.
+  if (isAdmin) {
+    return (
+      <>
+        <ScrollToTop />
+        <Suspense fallback={null}><AdminPage /></Suspense>
+      </>
+    );
+  }
 
   return (
     <>
