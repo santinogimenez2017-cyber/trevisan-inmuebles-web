@@ -78,3 +78,41 @@ export async function uploadPropertyImage(file: File): Promise<string> {
   if (error) fail(`No se pudo subir "${file.name}": ${error.message}`);
   return sb.storage.from(IMAGE_BUCKET).getPublicUrl(path).data.publicUrl;
 }
+
+// ── Contact requests (public.contacts: visitors insert, only admins read / manage) ──
+export const CONTACT_STATUSES = ['nuevo', 'leido', 'respondido', 'archivado'] as const;
+export type ContactStatus = (typeof CONTACT_STATUSES)[number];
+
+export interface ContactRow {
+  id: string;
+  created_at: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  message: string;
+  property_id: string | null;
+  status: ContactStatus;
+  /** Joined listing (null for general requests or if the listing was deleted). */
+  properties: { title: string; slug: string } | null;
+}
+
+export async function fetchContacts(): Promise<ContactRow[]> {
+  const sb = await getAdminSupabase();
+  const { data, error } = await sb.from('contacts').select('*, properties(title, slug)').order('created_at', { ascending: false });
+  if (error) fail(error.message);
+  return data as unknown as ContactRow[];
+}
+
+export async function setContactStatus(id: string, status: ContactStatus): Promise<void> {
+  const sb = await getAdminSupabase();
+  const { data, error } = await sb.from('contacts').update({ status }).eq('id', id).select('id');
+  if (error) fail(error.message);
+  if (!data?.length) fail('No se pudo actualizar (¿tu usuario es admin?).');
+}
+
+export async function deleteContact(id: string): Promise<void> {
+  const sb = await getAdminSupabase();
+  const { data, error } = await sb.from('contacts').delete().eq('id', id).select('id');
+  if (error) fail(error.message);
+  if (!data?.length) fail('No se pudo eliminar (¿tu usuario es admin?).');
+}

@@ -151,6 +151,33 @@ export function fetchAvailableProperties(): Promise<Property[]> {
   });
 }
 
+/** A visitor's request, as stored in public.contacts (see supabase_schema.sql). */
+export interface ContactInput {
+  name: string;
+  email: string;
+  phone?: string;
+  message: string;
+  propertyId?: string;
+}
+
+/**
+ * Saves a contact request. The public (anon) client may only INSERT into `contacts` (RLS), so no row is
+ * ever read back. Rejects with a plain Error when Supabase is not configured, slow or failing.
+ */
+export function submitContact(c: ContactInput): Promise<void> {
+  return run(async () => {
+    const sb = await getSupabase();
+    const { error } = await sb.from('contacts').insert({
+      name: c.name.trim(),
+      email: c.email.trim(),
+      phone: c.phone?.trim() || null,
+      message: c.message.trim(),
+      property_id: c.propertyId ?? null,
+    });
+    if (error) throw error;
+  });
+}
+
 /** One available listing by its slug, or `null` when it does not exist. Rejects like the above. */
 export function fetchPropertyBySlug(slug: string): Promise<Property | null> {
   return run(async () => {

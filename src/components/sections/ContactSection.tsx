@@ -4,6 +4,7 @@ import { Phone, Mail, MapPin, Send, CheckCircle } from 'lucide-react';
 import { SocialIcon } from '@/components/ui/SocialIcon';
 import { PHONE_TEL, PHONE_DISPLAY, WHATSAPP_DISPLAY, whatsappUrl } from '@/data/contact';
 import { trackFormSubmit, trackWhatsAppClick } from '@/lib/analytics';
+import { sendContact } from '@/lib/contact';
 
 const EXPO = [0.22, 1, 0.36, 1] as [number, number, number, number];
 
@@ -26,12 +27,23 @@ export function ContactSection() {
   const inView = useInView(sectionRef, { once: true, margin: '-80px' });
 
   const [sent, setSent] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState('');
   const [form, setForm] = useState({ name: '', email: '', phone: '', message: '', interest: '' });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    trackFormSubmit();
-    setSent(true);
+    setSending(true);
+    setError('');
+    try {
+      await sendContact({ name: form.name, email: form.email, phone: form.phone, message: form.message, interest: form.interest });
+      trackFormSubmit();
+      setSent(true);
+      setForm({ name: '', email: '', phone: '', message: '', interest: '' });
+    } catch {
+      setError('No pudimos enviar tu consulta. Intentá de nuevo o escribinos por WhatsApp.');
+    }
+    setSending(false);
   };
 
   return (
@@ -145,7 +157,7 @@ export function ContactSection() {
               <>
                 <h3 className="font-display text-2xl font-bold text-ink mb-2">Dejanos tu consulta</h3>
                 <p className="text-ink-soft text-sm mb-6">Te respondemos en menos de 24 horas hábiles.</p>
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={e => { void handleSubmit(e); }} className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <FormInput label="Nombre completo" value={form.name} onChange={v => setForm(f => ({ ...f, name: v }))} required />
                     <FormInput label="Teléfono" type="tel" value={form.phone} onChange={v => setForm(f => ({ ...f, phone: v }))} />
@@ -176,15 +188,17 @@ export function ContactSection() {
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#e07b2a]/30 focus:border-[#e07b2a] transition-all resize-none"
                     />
                   </div>
+                  {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
                   <motion.button
                     type="submit"
-                    className="w-full flex items-center justify-center gap-2 bg-ink text-white font-semibold py-3.5 rounded-xl text-sm"
+                    disabled={sending}
+                    className="w-full flex items-center justify-center gap-2 bg-ink text-white font-semibold py-3.5 rounded-xl text-sm disabled:opacity-60"
                     whileHover={{ scale: 1.015, backgroundColor: '#2b2c31' }}
                     whileTap={{ scale: 0.98 }}
                     transition={{ type: 'spring', stiffness: 350, damping: 22 }}
                   >
                     <Send size={15} />
-                    Enviar consulta
+                    {sending ? 'Enviando…' : 'Enviar consulta'}
                   </motion.button>
                 </form>
               </>

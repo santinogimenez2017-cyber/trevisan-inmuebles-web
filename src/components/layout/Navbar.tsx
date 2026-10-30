@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Phone, Menu, X } from 'lucide-react';
 import { SocialIcon } from '@/components/ui/SocialIcon';
 import { PHONE_TEL, whatsappUrl } from '@/data/contact';
+import { trackWhatsAppClick } from '@/lib/analytics';
 import { useSectionLink as useSectionNav } from '@/lib/useSectionLink';
 import { scrollToTop, scrollToTopSmooth } from '@/lib/scroll';
 
@@ -184,6 +185,7 @@ function DesktopActions() {
       </a>
       <motion.a
         href={whatsappUrl()}
+        onClick={() => trackWhatsAppClick('navbar', 'Navbar')}
         target="_blank"
         rel="noopener noreferrer"
         className="flex items-center gap-1.5 text-ink-soft hover:text-ink text-sm transition-colors"
@@ -223,6 +225,7 @@ function MobileSection() {
       </a>
       <a
         href={whatsappUrl()}
+        onClick={() => trackWhatsAppClick('navbar', 'Navbar')}
         target="_blank"
         rel="noopener noreferrer"
         className="flex items-center gap-2 text-ink-soft px-3 py-2"

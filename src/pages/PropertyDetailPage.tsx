@@ -10,6 +10,7 @@ import { useProperties, usePropertyBySlug } from '@/hooks/useProperties';
 import { PropertyDetailSkeleton, LoadError } from '@/components/ui/Skeleton';
 import { PHONE_TEL, whatsappUrl } from '@/data/contact';
 import { trackFormSubmit, trackWhatsAppClick } from '@/lib/analytics';
+import { sendContact } from '@/lib/contact';
 import { scrollToTop } from '@/lib/scroll';
 import { PropertyCard } from '@/components/property/PropertyCard';
 import { Lightbox } from '@/components/property/Lightbox';
@@ -286,7 +287,7 @@ export default function PropertyDetailPage() {
               </div>
 
               {/* Inline contact form */}
-              <ContactSidebar interest={interest} />
+              <ContactSidebar interest={interest} propertyId={property.id} propertyTitle={property.title} />
             </div>
           </motion.div>
         </div>
@@ -328,11 +329,27 @@ function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string
   );
 }
 
-function ContactSidebar({ interest }: { interest: string }) {
+function ContactSidebar({ interest, propertyId, propertyTitle }: { interest: string; propertyId: string; propertyTitle: string }) {
   const [name, setName]       = useState('');
   const [email, setEmail]     = useState('');
   const [message, setMessage] = useState(`Hola, me interesa la propiedad: ${interest}. ¿Podrían contactarme?`);
   const [sent, setSent]       = useState(false);
+  const [sending, setSending] = useState(false);
+  const [error, setError]     = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSending(true);
+    setError('');
+    try {
+      await sendContact({ name, email, message, propertyId, propertyTitle });
+      trackFormSubmit();
+      setSent(true);
+    } catch {
+      setError('No pudimos enviar tu consulta. Intentá de nuevo o escribinos por WhatsApp.');
+    }
+    setSending(false);
+  };
 
   if (sent) {
     return (
@@ -352,21 +369,23 @@ function ContactSidebar({ interest }: { interest: string }) {
   return (
     <div className="bg-white/90 border border-stone-300/60 shadow-md rounded-2xl p-6">
       <h3 className="font-semibold text-ink mb-4 text-sm">Solicitar información</h3>
-      <form onSubmit={e => { e.preventDefault(); trackFormSubmit(); setSent(true); }} className="space-y-3">
+      <form onSubmit={e => { void handleSubmit(e); }} className="space-y-3">
         <input required type="text" placeholder="Tu nombre" value={name} onChange={e => setName(e.target.value)}
           className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#e07b2a]/30 focus:border-[#e07b2a] transition-all" />
         <input required type="email" placeholder="Tu email" value={email} onChange={e => setEmail(e.target.value)}
           className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#e07b2a]/30 focus:border-[#e07b2a] transition-all" />
         <textarea rows={3} value={message} onChange={e => setMessage(e.target.value)}
           className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#e07b2a]/30 focus:border-[#e07b2a] transition-all resize-none" />
+        {error && <p role="alert" className="text-xs text-red-700">{error}</p>}
         <motion.button
           type="submit"
-          className="btn-shimmer w-full bg-accent text-white font-semibold py-2.5 rounded-xl text-sm"
+          disabled={sending}
+          className="btn-shimmer w-full bg-accent text-white font-semibold py-2.5 rounded-xl text-sm disabled:opacity-60"
           whileHover={{ scale: 1.015, backgroundColor: '#a64b0b' }}
           whileTap={{ scale: 0.98 }}
           transition={{ type: 'spring', stiffness: 350, damping: 22 }}
         >
-          Enviar consulta
+          {sending ? 'Enviando…' : 'Enviar consulta'}
         </motion.button>
       </form>
     </div>

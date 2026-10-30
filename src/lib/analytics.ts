@@ -10,6 +10,8 @@ type DataLayerEvent = { event: string } & Record<string, unknown>;
 declare global {
   interface Window {
     dataLayer?: DataLayerEvent[];
+    /** Defined by the GA4 snippet in index.html only when VITE_GA4_ID is valid. */
+    gtag?: (command: 'event', name: string, params?: Record<string, unknown>) => void;
   }
 }
 
@@ -27,6 +29,10 @@ function track(event: string, params: Record<string, unknown> = {}): void {
   if (typeof window === 'undefined') return;
   const payload: DataLayerEvent = { event, ...params };
   (window.dataLayer = window.dataLayer ?? []).push(payload);
+  // GA4 (direct gtag.js) takes flat parameters: nested values such as `filters` are sent as JSON.
+  window.gtag?.('event', event, Object.fromEntries(
+    Object.entries(params).map(([k, v]) => [k, v !== null && typeof v === 'object' ? JSON.stringify(v) : v]),
+  ));
   if (import.meta.env.DEV) console.log('[analytics]', payload);
 }
 

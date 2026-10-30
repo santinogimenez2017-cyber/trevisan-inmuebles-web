@@ -25,6 +25,22 @@
       })(window, document, 'script', 'dataLayer', '%VITE_GTM_ID%');
     </script>
     <!-- End Google Tag Manager -->
+    <!-- Google Analytics 4 (gtag.js). The id comes from VITE_GA4_ID; empty or malformed → does nothing.
+         Defines window.gtag, which src/lib/analytics.ts uses to mirror the custom events. -->
+    <script>
+      (function (w, d, i) {
+        if (!/^G-[A-Z0-9]+$/.test(i)) return;
+        w.dataLayer = w.dataLayer || [];
+        w.gtag = function () { w.dataLayer.push(arguments); };
+        w.gtag('js', new Date());
+        w.gtag('config', i);
+        var s = d.createElement('script');
+        s.async = true;
+        s.src = 'https://www.googletagmanager.com/gtag/js?id=' + i;
+        d.head.appendChild(s);
+      })(window, document, '%VITE_GA4_ID%');
+    </script>
+    <!-- End Google Analytics 4 -->
     <!-- Fonts: Google Fonts via preconnect -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

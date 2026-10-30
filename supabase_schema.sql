@@ -156,6 +156,40 @@ create policy "Admin update property images" on storage.objects for update to au
 create policy "Admin delete property images" on storage.objects for delete to authenticated
   using (bucket_id = 'property-images' and public.is_admin());
 
+-- ── Contact requests (forms "Dejanos tu consulta" and "Solicitar información") ─────────────────────
+-- Visitors (anon key) can only INSERT; reading and managing them is for admins. The length checks are the
+-- database-side guard against oversized / junk payloads (the anon key is public).
+create table if not exists public.contacts (
+  id          uuid        primary key default gen_random_uuid(),
+  created_at  timestamptz not null default now(),
+  name        text        not null check (char_length(btrim(name)) between 1 and 120),
+  email       text        not null check (char_length(btrim(email)) between 3 and 254 and email like '%_@_%'),
+  phone       text        check (phone is null or char_length(phone) <= 40),
+  message     text        not null default '' check (char_length(message) <= 4000),
+  property_id uuid        references public.properties (id) on delete set null,  -- set when sent from a listing page
+  status      text        not null default 'nuevo' check (status in ('nuevo', 'leido', 'respondido', 'archivado'))
+);
+
+create index if not exists contacts_created_at_idx on public.contacts (created_at desc);
+create index if not exists contacts_status_idx     on public.contacts (status);
+
+alter table public.contacts enable row level security;
+
+grant insert on public.contacts to anon;
+grant select, insert, update, delete on public.contacts to authenticated;
+
+drop policy if exists "Public insert contact" on public.contacts;
+drop policy if exists "Admin read contacts"   on public.contacts;
+drop policy if exists "Admin update contacts" on public.contacts;
+drop policy if exists "Admin delete contacts" on public.contacts;
+
+-- Visitors can only create NEW requests (they cannot pre-set another status). No SELECT policy for them.
+create policy "Public insert contact" on public.contacts for insert to anon, authenticated
+  with check (status = 'nuevo');
+create policy "Admin read contacts"   on public.contacts for select to authenticated using (public.is_admin());
+create policy "Admin update contacts" on public.contacts for update to authenticated using (public.is_admin()) with check (public.is_admin());
+create policy "Admin delete contacts" on public.contacts for delete to authenticated using (public.is_admin());
+
 -- Example row (delete after testing):
 -- insert into public.properties
 --   (title, slug, operation, property_type, price, currency, location, address, bedrooms, bathrooms,

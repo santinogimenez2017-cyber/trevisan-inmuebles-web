@@ -4,6 +4,7 @@ import { LoadError, Skeleton } from '@/components/ui/Skeleton';
 import { formatPrice } from '@/data/properties';
 import type { PropertyRow } from '@/lib/supabase';
 import { AdminLogin } from './AdminLogin';
+import { ContactsPanel } from './ContactsPanel';
 import { PropertyForm, fieldClass } from './PropertyForm';
 import { deleteProperty, fetchAllProperties, setPropertyStatus, STATUSES, type Status } from './api';
 import { useAdminSession } from './useAdminSession';
@@ -61,6 +62,7 @@ export default function AdminPage() {
 function Dashboard({ email, onSignOut }: { email: string; onSignOut: () => void }) {
   const [rows, setRows] = useState<PropertyRow[] | null>(null);
   const [error, setError] = useState<Error | null>(null);
+  const [section, setSection] = useState<'propiedades' | 'consultas'>('propiedades');
   const [filter, setFilter] = useState<'todos' | Status>('todos');
   const [query, setQuery] = useState('');
   const [editing, setEditing] = useState<PropertyRow | 'new' | null>(null);
@@ -116,13 +118,24 @@ function Dashboard({ email, onSignOut }: { email: string; onSignOut: () => void 
   return (
     <main className="min-h-screen bg-paper">
       <header className="bg-white/90 border-b border-stone-300/60 px-4 sm:px-6 py-3 flex flex-wrap items-center gap-3">
-        <h1 className="font-display text-xl text-ink mr-auto">Admin · Propiedades</h1>
+        <h1 className="font-display text-xl text-ink mr-auto">Admin · {section === 'propiedades' ? 'Propiedades' : 'Consultas'}</h1>
         <Link to="/" className="text-sm text-ink-soft hover:text-ink transition-colors">Ver sitio</Link>
         <span className="text-xs text-ink-soft hidden sm:inline">{email}</span>
         <button onClick={onSignOut} className="text-sm text-ink-soft hover:text-ink transition-colors">Cerrar sesión</button>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-5">
+      <nav className="bg-white/60 border-b border-stone-300/60 px-4 sm:px-6 flex gap-1" role="tablist" aria-label="Secciones del panel">
+        {(['propiedades', 'consultas'] as const).map(s => (
+          <button key={s} role="tab" aria-selected={section === s} onClick={() => setSection(s)}
+            className={`px-4 py-3 text-sm font-semibold capitalize border-b-2 -mb-px transition-colors ${section === s ? 'border-accent text-ink' : 'border-transparent text-ink-soft hover:text-ink'}`}>
+            {s}
+          </button>
+        ))}
+      </nav>
+
+      {section === 'consultas' && <ContactsPanel onFlash={flash} />}
+
+      {section === 'propiedades' && <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-5">
         <div className="flex flex-wrap items-center gap-3">
           <input type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder="Buscar por título o código (ej. TRV523)"
             aria-label="Buscar propiedades" className={`${fieldClass} sm:max-w-sm`} />
@@ -195,7 +208,7 @@ function Dashboard({ email, onSignOut }: { email: string; onSignOut: () => void 
             </table>
           </div>
         )}
-      </div>
+      </div>}
 
       {editing && (
         <PropertyForm
