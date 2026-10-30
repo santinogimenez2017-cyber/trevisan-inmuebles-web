@@ -1,11 +1,5 @@
-// Real listings scraped from https://trevisan.com.ar/ by `npm run scrape`
-// (scripts/scrape-properties.mjs → src/data/properties.json). Do not edit the JSON by hand.
-//
-// The JSON (~190 kB) is NOT imported statically: it is loaded with a dynamic import() so that
-// Vite emits it as its own chunk and keeps it out of the initial bundle.
-
-import { useEffect, useMemo, useState } from 'react';
-import { fetchCustomProperties } from '@/lib/supabase';
+// Property types and pure helpers. The listings themselves live in Supabase (supabase_schema.sql /
+// supabase_seed.sql) and are read through the hooks in src/hooks/useProperties.ts.
 
 export type PropertyOperation = 'venta' | 'alquiler';
 export type PropertyType = 'casa' | 'departamento' | 'terreno' | 'local' | 'ph' | 'oficina';
@@ -23,7 +17,6 @@ export interface Property {
   province: string;
   price: number;       // 0 = precio a consultar
   currency: Currency;
-  rooms?: number;
   bedrooms?: number;
   bathrooms?: number;
   area?: number;       // m²
@@ -31,81 +24,24 @@ export interface Property {
   parking?: number;
   description: string;
   features: string[];
-  images: string[];
-  cover?: string;       // sharpest landscape photo among the first images (scripts/pick-covers.mjs)
-  coverRatio?: number;  // width / height of `cover`
+  images: string[];    // the first one is the cover
   featured: boolean;
-  status?: string;     // e.g. "A estrenar", "En pozo"
-  sourceUrl?: string;
+  status?: string;     // card badge, e.g. "A estrenar", "En pozo"
   createdAt: string;
 }
 
-// ── Lazy loading ───────────────────────────────────────────────────────────
-let cache: Property[] | null = null;
-let pending: Promise<Property[]> | null = null;
-
-/**
- * Loads the listings once; later calls reuse the same promise. The scraped JSON is merged with the
- * listings entered manually in Supabase (Módulo C, newest first); if Supabase is not configured or
- * fails, `fetchCustomProperties()` resolves to [] and only the JSON is used.
- */
-export function loadProperties(): Promise<Property[]> {
-  pending ??= Promise.all([import('./properties.json'), fetchCustomProperties()]).then(([mod, custom]) => {
-    cache = [...custom, ...(mod.default as Property[])];
-    return cache;
-  });
-  return pending;
-}
-
-// Start downloading right away (in parallel with React mounting) instead of waiting for a
-// component effect, so the hero and listings are ready as soon as possible.
-void loadProperties();
-
-/** Listings + loading flag. Returns [] while the chunk is still downloading. */
-export function useProperties(): { properties: Property[]; loading: boolean } {
-  const [properties, setProperties] = useState<Property[]>(cache ?? []);
-  const [loading, setLoading] = useState(cache === null);
-
-  useEffect(() => {
-    if (cache) return;
-    let alive = true;
-    loadProperties().then(list => {
-      if (!alive) return;
-      setProperties(list);
-      setLoading(false);
-    });
-    return () => { alive = false; };
-  }, []);
-
-  return { properties, loading };
-}
-
 // ── Derived data ───────────────────────────────────────────────────────────
-const unique = (values: string[]) =>
-  [...new Set(values)].sort((a, b) => a.localeCompare(b, 'es'));
+/** Presentation photo of a listing (the first image: the cover is stored first in Supabase). */
+export const coverOf = (p: Property): string => p.images[0];
 
-/** Best presentation photo of a listing. */
-export const coverOf = (p: Property): string => p.cover ?? p.images[0];
-
-/** Photos of the featured listings, used as hero backdrop. */
-export function getHeroImages(props: Property[]): string[] {
-  return props.filter(p => p.featured).slice(0, 4).map(coverOf);
-}
-
-/** Picks the best listing to illustrate a group: featured → landscape → most photos. */
+/** Picks the best listing to illustrate a group: featured first, then the one with the most photos. */
 export function pickShowcase(props: Property[]): Property | undefined {
-  const rank = (p: Property) =>
-    (p.featured ? 4 : 0) + ((p.coverRatio ?? 0) >= 1.2 ? 2 : 0) + Math.min(p.images.length, 40) / 100;
+  const rank = (p: Property) => (p.featured ? 4 : 0) + Math.min(p.images.length, 40) / 100;
   return [...props].filter(p => p.images.length > 0).sort((a, b) => rank(b) - rank(a))[0];
 }
 
 export function getNeighborhoods(props: Property[]): string[] {
-  return unique(props.map(p => p.neighborhood).filter(Boolean));
-}
-
-export function useNeighborhoods(): string[] {
-  const { properties } = useProperties();
-  return useMemo(() => getNeighborhoods(properties), [properties]);
+  return [...new Set(props.map(p => p.neighborhood).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'));
 }
 
 /** "Barrio, Ciudad" — the barrio is omitted when the source doesn't specify one. */
@@ -143,4 +79,3 @@ export function filterProperties(props: Property[], filters: {
     return true;
   });
 }
-

@@ -1,9 +1,8 @@
-// Módulo C — Supabase client + manual listings.
+// Supabase client + queries for the `properties` table (see supabase_schema.sql).
 //
-// Listings loaded by hand in the Supabase `properties` table (see supabase_schema.sql) are merged
-// with the scraped JSON in `loadProperties()`. Everything here is optional and fail-safe: without
-// VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY, or if the request fails, the site simply shows the
-// local JSON. The SDK is loaded with a dynamic import() so it never weighs on the initial bundle.
+// Supabase is the only source of listings. The SDK is loaded with a dynamic import() so it never
+// weighs on the initial bundle; `getSupabase()` resolves the shared client. Rows are translated to the
+// app's `Property` by `toProperty()`, so components never see the snake_case database shape.
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Currency, Property, PropertyType } from '@/data/properties';
@@ -11,7 +10,7 @@ import type { Currency, Property, PropertyType } from '@/data/properties';
 // Accepts the bare project URL or a pasted REST endpoint (".../rest/v1/"): the SDK appends /rest/v1 itself.
 const URL = import.meta.env.VITE_SUPABASE_URL?.trim().replace(/\/+$/, '').replace(/\/rest\/v1$/, '');
 const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const REQUEST_TIMEOUT_MS = 4000;
+const REQUEST_TIMEOUT_MS = 8000;
 
 export const isSupabaseConfigured = Boolean(URL && ANON_KEY);
 
@@ -19,13 +18,12 @@ let client: Promise<SupabaseClient> | null = null;
 
 /**
  * The shared Supabase client instance. It is `null` until the SDK chunk has been loaded (the SDK is
- * lazy so it stays out of the initial bundle); `getSupabase()` / `fetchCustomProperties()` populate it.
- * It is an ES live binding, so importers always see the current value. Prefer `await getSupabase()`
- * when you need a guaranteed instance.
+ * lazy so it stays out of the initial bundle); `getSupabase()` populates it. It is an ES live binding,
+ * so importers always see the current value. Prefer `await getSupabase()` when you need an instance.
  */
 export let supabase: SupabaseClient | null = null;
 
-/** Lazily creates the singleton client. Throws if the env vars are missing. */
+/** Lazily creates the singleton client. Rejects if the env vars are missing. */
 export function getSupabase(): Promise<SupabaseClient> {
   if (!URL || !ANON_KEY) return Promise.reject(new Error('Supabase is not configured'));
   client ??= import('@supabase/supabase-js').then(({ createClient }) => {
@@ -46,18 +44,20 @@ export interface PropertyRow {
   currency: string;
   location: string;
   address?: string;
+  neighborhood?: string;
+  city?: string;
   bedrooms: number;
   bathrooms: number;
   covered_area?: number;
   total_area: number;
   description?: string;
   images: string[];
+  features?: string[];
+  parking?: number;
   featured: boolean;
+  badge?: string | null;
   status: string;
   created_at?: string;
-  /** Legacy v1 column names, still read while the old schema is deployed. */
-  type?: string;
-  area?: number;
 }
 
 const PROPERTY_TYPES: readonly PropertyType[] = ['casa', 'departamento', 'terreno', 'local', 'ph', 'oficina'];
@@ -67,30 +67,33 @@ const slugify = (s: string) =>
 
 function toProperty(r: PropertyRow): Property {
   const location = (r.location ?? '').trim();
-  const rawType = (r.property_type ?? r.type ?? '').toLowerCase();
-  const type = PROPERTY_TYPES.find(t => t === rawType) ?? 'casa';
-  const area = r.total_area ?? r.area;
+  const neighborhood = (r.neighborhood ?? '').trim();
+  const city = (r.city ?? '').trim();
+  const rawType = (r.property_type ?? '').toLowerCase();
   return {
-    id: `sb-${r.id}`,
+    id: r.id,
     slug: r.slug?.trim() || `${slugify(r.title) || 'propiedad'}-${r.id.slice(0, 8)}`,
     operation: r.operation,
-    type,
+    type: PROPERTY_TYPES.find(t => t === rawType) ?? 'casa',
     title: r.title,
     address: r.address?.trim() || location,
-    neighborhood: location,
-    city: '',
+    // Rows entered by hand with only `location` still get a barrio for the card and the filter.
+    neighborhood: neighborhood || (city ? '' : location),
+    city,
     province: 'Misiones',
     price: r.price ?? 0,
     currency: (r.currency === 'ARS' ? 'ARS' : 'USD') as Currency,
     bedrooms: r.bedrooms || undefined,
     bathrooms: r.bathrooms || undefined,
-    area: area || undefined,
+    area: r.total_area || undefined,
     coveredArea: r.covered_area || undefined,
+    parking: r.parking || undefined,
     description: r.description ?? '',
-    features: [],
+    features: r.features ?? [],
     images: r.images ?? [],
     featured: r.featured ?? false,
-    // `status` in the DB is the publication state ('disponible'), not the card badge text: not mapped.
+    // DB `status` is the publication state ('disponible'); the card badge text is `badge`.
+    status: r.badge || undefined,
     createdAt: r.created_at ?? new Date().toISOString(),
   };
 }
@@ -115,7 +118,7 @@ async function run<T>(query: () => Promise<T>): Promise<T> {
 
 /**
  * Available listings (status = 'disponible'), newest first, mapped to the app's `Property` shape.
- * Rejects when Supabase is not configured, slow (> 4 s) or failing.
+ * Rejects when Supabase is not configured, slow (> 8 s) or failing.
  */
 export function fetchAvailableProperties(): Promise<Property[]> {
   return run(async () => {
@@ -143,18 +146,4 @@ export function fetchPropertyBySlug(slug: string): Promise<Property | null> {
     if (error) throw error;
     return data ? toProperty(data as PropertyRow) : null;
   });
-}
-
-/**
- * Same as `fetchAvailableProperties()` but never throws: returns [] when Supabase is not configured,
- * slow or failing, so the site falls back to the local JSON (used by `loadProperties()`).
- */
-export async function fetchCustomProperties(): Promise<Property[]> {
-  if (!isSupabaseConfigured) return [];
-  try {
-    return await fetchAvailableProperties();
-  } catch (err) {
-    if (import.meta.env.DEV) console.warn('[supabase] custom properties unavailable:', err);
-    return [];
-  }
 }

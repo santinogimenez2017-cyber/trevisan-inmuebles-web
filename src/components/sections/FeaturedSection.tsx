@@ -2,7 +2,9 @@ import { useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useScroll, useTransform, useSpring } from 'framer-motion';
 import { ArrowRight, MapPin, Bed, Bath, Square } from 'lucide-react';
-import { useProperties, formatPrice as formatPropertyPrice, locationLabel, coverOf, type Property } from '@/data/properties';
+import { formatPrice as formatPropertyPrice, locationLabel, coverOf, type Property } from '@/data/properties';
+import { useProperties } from '@/hooks/useProperties';
+import { PropertyCardSkeleton } from '@/components/ui/Skeleton';
 
 const EXPO = [0.22, 1, 0.36, 1] as [number, number, number, number];
 
@@ -19,7 +21,7 @@ const stagger = { show: { transition: { staggerChildren: 0.12 } } };
 
 export function FeaturedSection() {
   const sectionRef = useRef<HTMLElement>(null);
-  const { properties } = useProperties();
+  const { properties, loading } = useProperties();
   const featured = useMemo(() => properties.filter(p => p.featured).slice(0, 3), [properties]);
   const { scrollYProgress } = useScroll({ target: sectionRef, offset: ['start end', 'end start'] });
 
@@ -72,11 +74,17 @@ export function FeaturedSection() {
           viewport={{ once: true, margin: '-60px' }}
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
         >
-          {featured.map(property => (
-            <motion.div key={property.id} variants={cardVariants}>
-              <FeaturedCard property={property} />
-            </motion.div>
-          ))}
+          {loading
+            ? Array.from({ length: 3 }, (_, i) => (
+                <motion.div key={i} variants={cardVariants} role="status" aria-label="Cargando propiedades">
+                  <PropertyCardSkeleton />
+                </motion.div>
+              ))
+            : featured.map(property => (
+                <motion.div key={property.id} variants={cardVariants}>
+                  <FeaturedCard property={property} />
+                </motion.div>
+              ))}
         </motion.div>
 
         {/* CTA strip */}

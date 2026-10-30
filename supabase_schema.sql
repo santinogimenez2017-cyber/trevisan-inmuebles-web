@@ -15,13 +15,18 @@ create table if not exists public.properties (
   currency      text        not null default 'USD' check (currency in ('USD', 'ARS')),
   location      text        not null default '',               -- e.g. 'Villa Cabello, Posadas'
   address       text,
+  neighborhood  text        not null default '',               -- barrio, e.g. 'Centro' (used by the barrio filter); falls back to `location`
+  city          text        not null default '',               -- e.g. 'Posadas'
   bedrooms      int         not null default 0,
   bathrooms     int         not null default 0,
   covered_area  numeric,                                       -- m² cubiertos
   total_area    numeric     not null default 0,                -- m² totales
   description   text        not null default '',
   images        text[]      not null default '{}',             -- public image URLs; the first one is the cover
+  features      text[]      not null default '{}',             -- amenities list, e.g. {Piscina,Quincho}
+  parking       int         not null default 0,                -- cocheras
   featured      boolean     not null default false,
+  badge         text,                                          -- optional card badge, e.g. 'A estrenar', 'En pozo'
   status        text        not null default 'disponible',     -- the site only shows 'disponible'; use e.g. 'reservado' / 'vendido' / 'alquilado' to hide a listing
   created_at    timestamptz not null default now()
 );
@@ -40,6 +45,11 @@ end $$;
 alter table public.properties add column if not exists slug         text;
 alter table public.properties add column if not exists address      text;
 alter table public.properties add column if not exists covered_area numeric;
+alter table public.properties add column if not exists neighborhood text not null default '';
+alter table public.properties add column if not exists city         text not null default '';
+alter table public.properties add column if not exists features     text[] not null default '{}';
+alter table public.properties add column if not exists parking      int  not null default 0;
+alter table public.properties add column if not exists badge        text;
 alter table public.properties add column if not exists status       text not null default 'disponible';
 
 -- status is now the publication state (the site filters status = 'disponible'): empty values become 'disponible'.

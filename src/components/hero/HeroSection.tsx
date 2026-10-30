@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, ChevronDown, ArrowRight } from 'lucide-react';
-import { useProperties, useNeighborhoods } from '@/data/properties';
+import { useProperties, useNeighborhoods } from '@/hooks/useProperties';
 import { loadGsap } from '@/lib/loadGsap';
 import { trackPropertySearch } from '@/lib/analytics';
 import { HeroParticles } from './HeroParticles';
@@ -25,7 +25,7 @@ export function HeroSection() {
 
   const [imgIndex, setImgIndex] = useState(0);
 
-  // Listing count in the hero meta line comes from the lazily-loaded listings chunk.
+  // Listing count in the hero meta line comes from Supabase.
   const { properties } = useProperties();
 
   // Auto-cycle images
@@ -292,7 +292,7 @@ export function HeroSection() {
 // ── Search panel ──────────────────────────────────────────────
 function HeroSearch() {
   const navigate = useNavigate();
-  const neighborhoods = useNeighborhoods(); // real barrios from the scraped catalogue
+  const neighborhoods = useNeighborhoods(); // real barrios from the Supabase catalogue
   const [operation, setOperation] = useState('');
   const [type, setType] = useState('');
   const [neighborhood, setNeighborhood] = useState('');

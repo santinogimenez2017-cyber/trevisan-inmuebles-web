@@ -5,7 +5,9 @@ import {
   ArrowLeft, Bed, Bath, Square, MapPin, Phone, MessageCircle,
   ChevronLeft, ChevronRight, Tag, Check, Share2, Maximize2,
 } from 'lucide-react';
-import { useProperties, formatPrice as formatPropertyPrice, locationLabel } from '@/data/properties';
+import { formatPrice as formatPropertyPrice, locationLabel } from '@/data/properties';
+import { useProperties, usePropertyBySlug } from '@/hooks/useProperties';
+import { PropertyDetailSkeleton, LoadError } from '@/components/ui/Skeleton';
 import { PHONE_TEL, whatsappUrl } from '@/data/contact';
 import { trackFormSubmit, trackWhatsAppClick } from '@/lib/analytics';
 import { scrollToTop } from '@/lib/scroll';
@@ -20,10 +22,10 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 export default function PropertyDetailPage() {
-  const { slug } = useParams<{ slug: string }>();
+  const { slug = '' } = useParams<{ slug: string }>();
   const navigate  = useNavigate();
-  const { properties, loading } = useProperties();
-  const property  = properties.find(p => p.slug === slug);
+  const { property, loading, error, refetch } = usePropertyBySlug(slug);
+  const { properties } = useProperties(); // for the "related" strip only
   const [activeImage, setActiveImage] = useState(0);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [copied, setCopied]  = useState(false);
@@ -39,10 +41,12 @@ export default function PropertyDetailPage() {
     setLightboxIndex(null);
   }
 
-  if (loading) {
+  if (loading) return <PropertyDetailSkeleton />;
+
+  if (error) {
     return (
-      <div className="min-h-screen pt-20 flex items-center justify-center text-ink-soft text-sm" role="status">
-        Cargando propiedad…
+      <div className="min-h-screen pt-20 flex items-center justify-center">
+        <LoadError onRetry={refetch} />
       </div>
     );
   }

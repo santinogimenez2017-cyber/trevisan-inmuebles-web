@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowUpRight, Bed, Bath, Square } from 'lucide-react';
-import { useProperties, formatPrice, locationLabel, coverOf, type Property } from '@/data/properties';
+import { formatPrice, locationLabel, coverOf, type Property } from '@/data/properties';
+import { useProperties } from '@/hooks/useProperties';
 import { loadGsap } from '@/lib/loadGsap';
 
 const EXPO = [0.22, 1, 0.36, 1] as [number, number, number, number];

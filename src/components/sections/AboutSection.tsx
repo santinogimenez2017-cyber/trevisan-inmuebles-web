@@ -1,7 +1,8 @@
 import { useMemo, useRef } from 'react';
 import { motion, useInView } from 'framer-motion';
 import { Shield, Clock, Award, Users } from 'lucide-react';
-import { useProperties, coverOf, pickShowcase, locationLabel } from '@/data/properties';
+import { coverOf, pickShowcase, locationLabel } from '@/data/properties';
+import { useProperties } from '@/hooks/useProperties';
 
 const EXPO = [0.22, 1, 0.36, 1] as [number, number, number, number];
 

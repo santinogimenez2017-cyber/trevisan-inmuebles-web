@@ -3,9 +3,11 @@ import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, SlidersHorizontal, X, ChevronDown } from 'lucide-react';
 import { PropertyCard } from '@/components/property/PropertyCard';
+import { PropertyGridSkeleton, LoadError } from '@/components/ui/Skeleton';
 import { trackPropertySearch } from '@/lib/analytics';
+import { useProperties, useNeighborhoods } from '@/hooks/useProperties';
 import {
-  useProperties, useNeighborhoods, filterProperties,
+  filterProperties,
   type PropertyOperation, type PropertyType, type Currency,
 } from '@/data/properties';
 
@@ -33,7 +35,7 @@ const cardItem = {
 
 export default function ListingsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { properties, loading } = useProperties();
+  const { properties, loading, error, refetch } = useProperties();
   const [showFilters, setShowFilters]   = useState(false);
 
   const [operation, setOperation] = useState<PropertyOperation | ''>((searchParams.get('operacion') as PropertyOperation) || '');
@@ -221,7 +223,9 @@ export default function ListingsPage() {
 
         {/* Results grid — keyed so stagger re-fires on filter changes */}
         {loading ? (
-          <div className="py-24 text-center text-ink-soft text-sm" role="status">Cargando propiedades…</div>
+          <PropertyGridSkeleton />
+        ) : error ? (
+          <LoadError onRetry={refetch} />
         ) : sorted.length === 0 ? (
           <EmptyState onClear={clearFilters} />
         ) : (

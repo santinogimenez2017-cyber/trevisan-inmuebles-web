@@ -2,11 +2,13 @@ import { useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useInView } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
-import { useProperties, coverOf, pickShowcase } from '@/data/properties';
+import { coverOf, pickShowcase } from '@/data/properties';
+import { useProperties } from '@/hooks/useProperties';
+import { Skeleton } from '@/components/ui/Skeleton';
 
 const EXPO = [0.22, 1, 0.36, 1] as [number, number, number, number];
 
-// Photos and counts come from the real listings (properties.json), not from stock images.
+// Photos and counts come from the real listings (Supabase), not from stock images.
 const CATEGORIES = [
   { label: 'Casas',         type: 'casa' },
   { label: 'Departamentos', type: 'departamento' },
@@ -26,7 +28,7 @@ const cardVariants = {
 };
 
 export function CategoriesSection() {
-  const { properties } = useProperties();
+  const { properties, loading } = useProperties();
   const cards = useMemo(() => CATEGORIES.map(cat => {
     const group = properties.filter(p =>
       (!cat.type || p.type === cat.type) && (!cat.operation || p.operation === cat.operation));
@@ -80,6 +82,7 @@ export function CategoriesSection() {
               <motion.div key={cat.label} variants={cardVariants}>
                 <Link to={href} className="group block">
                 <div className="relative rounded-2xl overflow-hidden aspect-[3/4] bg-stone-200 border border-stone-300/60 shadow-md group-hover:shadow-xl transition-shadow duration-300">
+                  {loading && <Skeleton className="absolute inset-0" />}
                   {cat.image && (
                     <img
                       src={cat.image}
@@ -97,7 +100,7 @@ export function CategoriesSection() {
                 {/* Caption sits below the photo (editorial), so the image stays untouched */}
                 <div className="pt-3 px-1">
                   <h3 className="font-display text-xl text-ink leading-tight group-hover:text-accent-deep transition-colors">{cat.label}</h3>
-                  <p className="text-ink-soft text-xs mt-0.5">{cat.count}</p>
+                  <p className="text-ink-soft text-xs mt-0.5 min-h-4">{cat.count}</p>
                 </div>
                 </Link>
               </motion.div>
