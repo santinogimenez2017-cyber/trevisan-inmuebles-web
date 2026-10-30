@@ -138,6 +138,24 @@ create policy "Admin delete"    on public.properties for delete to authenticated
 -- 2) run, with your email:
 --   insert into public.admins (user_id) select id from auth.users where email = 'tu@email.com' on conflict do nothing;
 
+-- ── Photos: Storage bucket `property-images` (admin panel uploads) ───────────────────────────────
+-- Public bucket: anyone can read an image by its URL (no select policy => the file list stays private).
+-- Only admins can upload / replace / delete. Existing external image URLs in properties.images keep working.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('property-images', 'property-images', true, 10485760, array['image/jpeg', 'image/png', 'image/webp'])
+on conflict (id) do update
+  set public = true, file_size_limit = 10485760, allowed_mime_types = array['image/jpeg', 'image/png', 'image/webp'];
+
+drop policy if exists "Admin upload property images" on storage.objects;
+drop policy if exists "Admin update property images" on storage.objects;
+drop policy if exists "Admin delete property images" on storage.objects;
+create policy "Admin upload property images" on storage.objects for insert to authenticated
+  with check (bucket_id = 'property-images' and public.is_admin());
+create policy "Admin update property images" on storage.objects for update to authenticated
+  using (bucket_id = 'property-images' and public.is_admin()) with check (bucket_id = 'property-images' and public.is_admin());
+create policy "Admin delete property images" on storage.objects for delete to authenticated
+  using (bucket_id = 'property-images' and public.is_admin());
+
 -- Example row (delete after testing):
 -- insert into public.properties
 --   (title, slug, operation, property_type, price, currency, location, address, bedrooms, bathrooms,

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { formatAmount } from '@/data/properties';
 import type { PropertyRow } from '@/lib/supabase';
 import { saveProperty, STATUSES, type PropertyInput, type Status } from './api';
+import { PhotoManager } from './PhotoManager';
 
 export const fieldClass =
   'w-full px-3 py-2.5 bg-white border border-stone-300/70 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#e07b2a]/30 focus:border-[#e07b2a] transition-all';
@@ -30,7 +31,7 @@ interface FormState {
   title: string; operation: string; property_type: string; status: string; price: string; currency: string;
   neighborhood: string; city: string; address: string; bedrooms: string; bathrooms: string;
   covered_area: string; total_area: string; parking: string; description: string;
-  features: string; images: string; featured: boolean; badge: string;
+  features: string; images: string[]; featured: boolean; badge: string;
 }
 
 const toForm = (r: PropertyRow | null): FormState => ({
@@ -50,7 +51,7 @@ const toForm = (r: PropertyRow | null): FormState => ({
   parking: r ? String(r.parking ?? 0) : '',
   description: r?.description ?? '',
   features: (r?.features ?? []).join('\n'),
-  images: (r?.images ?? []).join('\n'),
+  images: r?.images ?? [],
   featured: r?.featured ?? false,
   badge: r?.badge ?? '',
 });
@@ -62,6 +63,7 @@ export function PropertyForm({ row, onSaved, onClose }: {
   const [f, setF] = useState<FormState>(() => toForm(row));
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setF(s => ({ ...s, [k]: v }));
   const text = (k: keyof FormState) => ({
     value: f[k] as string,
@@ -78,12 +80,12 @@ export function PropertyForm({ row, onSaved, onClose }: {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const images = lines(f.images);
+    const images = f.images;
     const numbers = [f.price, f.bedrooms, f.bathrooms, f.covered_area, f.total_area, f.parking].map(num);
+    if (uploading) return setError('Esperá a que terminen de subirse las fotos.');
     if (!f.title.trim()) return setError('El título es obligatorio.');
     if (numbers.some(n => !Number.isFinite(n) || n < 0)) return setError('Los números no pueden ser negativos ni inválidos.');
     if (!images.length) return setError('Agregá al menos una foto: sin fotos la propiedad no se muestra en el sitio.');
-    if (images.some(u => !/^https?:\/\//i.test(u))) return setError('Cada foto debe ser una URL que empiece con http:// o https://');
 
     const neighborhood = f.neighborhood.trim();
     const city = f.city.trim();
@@ -169,14 +171,15 @@ export function PropertyForm({ row, onSaved, onClose }: {
 
         <Field label="Descripción"><textarea rows={5} className={`${fieldClass} resize-y`} {...text('description')} /></Field>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field label="Características" hint="Una por línea (Piscina, Quincho…)">
-            <textarea rows={5} className={`${fieldClass} resize-y`} {...text('features')} />
-          </Field>
-          <Field label="Fotos (URLs) *" hint="Una por línea. La primera es la portada.">
-            <textarea rows={5} className={`${fieldClass} resize-y font-mono text-xs`} {...text('images')} />
-          </Field>
-        </div>
+        <Field label="Características" hint="Una por línea (Piscina, Quincho…)">
+          <textarea rows={5} className={`${fieldClass} resize-y`} {...text('features')} />
+        </Field>
+
+        <PhotoManager
+          images={f.images}
+          onChange={update => setF(s => ({ ...s, images: update(s.images) }))}
+          onBusyChange={setUploading}
+        />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
           <Field label="Insignia de la tarjeta" hint="Opcional: A estrenar, En pozo…"><input className={fieldClass} {...text('badge')} /></Field>
@@ -194,7 +197,7 @@ export function PropertyForm({ row, onSaved, onClose }: {
 
         <div className="flex justify-end gap-3 pt-1">
           <button type="button" onClick={onClose} className="px-5 py-2.5 text-sm text-ink-soft hover:text-ink transition-colors">Cancelar</button>
-          <button type="submit" disabled={saving}
+          <button type="submit" disabled={saving || uploading}
             className="bg-ink text-white text-sm font-semibold px-6 py-2.5 rounded-xl hover:bg-[#2b2c31] disabled:opacity-60 transition-colors">
             {saving ? 'Guardando…' : row ? 'Guardar cambios' : 'Crear propiedad'}
           </button>

@@ -61,3 +61,20 @@ export async function deleteProperty(id: string): Promise<void> {
   if (error) fail(error.message);
   if (!data?.length) fail('No se pudo eliminar (¿tu usuario es admin?).');
 }
+
+// ── Photos (Supabase Storage bucket `property-images`, public read; writes restricted to admins by RLS) ──
+export const IMAGE_BUCKET = 'property-images';
+export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+const IMAGE_EXT: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+
+/** Uploads one JPG / PNG / WEBP to the bucket and returns its public URL. */
+export async function uploadPropertyImage(file: File): Promise<string> {
+  const ext = IMAGE_EXT[file.type];
+  if (!ext) fail(`"${file.name}": solo se aceptan JPG, PNG o WEBP.`);
+  if (file.size > MAX_IMAGE_BYTES) fail(`"${file.name}" supera los 10 MB.`);
+  const sb = await getAdminSupabase();
+  const path = `${crypto.randomUUID()}.${ext}`;
+  const { error } = await sb.storage.from(IMAGE_BUCKET).upload(path, file, { contentType: file.type, cacheControl: '31536000' });
+  if (error) fail(`No se pudo subir "${file.name}": ${error.message}`);
+  return sb.storage.from(IMAGE_BUCKET).getPublicUrl(path).data.publicUrl;
+}
