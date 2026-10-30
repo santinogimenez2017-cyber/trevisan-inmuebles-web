@@ -7,7 +7,7 @@ import { PropertyGridSkeleton, LoadError } from '@/components/ui/Skeleton';
 import { trackPropertySearch } from '@/lib/analytics';
 import { useProperties, useNeighborhoods } from '@/hooks/useProperties';
 import {
-  filterProperties,
+  filterProperties, formatAmount, formatNumber,
   type PropertyOperation, type PropertyType, type Currency,
 } from '@/data/properties';
 
@@ -214,8 +214,8 @@ export default function ListingsPage() {
               {type         && <FilterChip label={TYPE_OPTIONS.find(t => t.value === type)?.label ?? type} onRemove={() => { setType(''); setGridKey(k => k + 1); }} />}
               {neighborhood && <FilterChip label={neighborhood} onRemove={() => { setNeighborhood(''); setGridKey(k => k + 1); }} />}
               {currency     && <FilterChip label={currency} onRemove={() => { setCurrency(''); setGridKey(k => k + 1); }} />}
-              {minPrice     && <FilterChip label={`Desde ${minPrice}`} onRemove={() => { setMinPrice(''); setGridKey(k => k + 1); }} />}
-              {maxPrice     && <FilterChip label={`Hasta ${maxPrice}`} onRemove={() => { setMaxPrice(''); setGridKey(k => k + 1); }} />}
+              {minPrice     && <FilterChip label={`Desde ${formatAmount(Number(minPrice), currency || undefined)}`} onRemove={() => { setMinPrice(''); setGridKey(k => k + 1); }} />}
+              {maxPrice     && <FilterChip label={`Hasta ${formatAmount(Number(maxPrice), currency || undefined)}`} onRemove={() => { setMaxPrice(''); setGridKey(k => k + 1); }} />}
               {bedrooms     && <FilterChip label={`${bedrooms}+ dorm.`} onRemove={() => { setBedrooms(''); setGridKey(k => k + 1); }} />}
             </motion.div>
           )}
@@ -278,16 +278,8 @@ function FilterPanel({
         <FilterSelect label="Moneda" value={currency} onChange={v => setCurrency(v as Currency | '')} options={[
           { value: '', label: 'Todas' }, { value: 'USD', label: 'USD' }, { value: 'ARS', label: 'Pesos ARS' },
         ]} />
-        <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1.5">Precio mínimo</label>
-          <input type="number" value={minPrice} onChange={e => setMinPrice(e.target.value)} placeholder="0"
-            className="w-full px-3 py-2.5 bg-white/90 border border-stone-300/60 shadow-sm rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#e07b2a]/30 focus:border-[#e07b2a] transition-all" />
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1.5">Precio máximo</label>
-          <input type="number" value={maxPrice} onChange={e => setMaxPrice(e.target.value)} placeholder="Sin límite"
-            className="w-full px-3 py-2.5 bg-white/90 border border-stone-300/60 shadow-sm rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#e07b2a]/30 focus:border-[#e07b2a] transition-all" />
-        </div>
+        <PriceInput label="Precio mínimo" value={minPrice} onChange={setMinPrice} currency={currency} placeholder="Ej. 50.000" />
+        <PriceInput label="Precio máximo" value={maxPrice} onChange={setMaxPrice} currency={currency} placeholder="Ej. 500.000" />
         <FilterSelect label="Dormitorios mín." value={bedrooms} onChange={setBedrooms} options={[
           { value: '', label: 'Todos' }, { value: '1', label: '1+' }, { value: '2', label: '2+' },
           { value: '3', label: '3+' }, { value: '4', label: '4+' },
@@ -307,6 +299,38 @@ function FilterPanel({
         <button onClick={onClear} className="text-sm text-ink-soft hover:text-gray-800 px-4 py-2.5 transition-colors">
           Limpiar
         </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Price field that shows thousands dots while typing ("500.000"). The state keeps only the digits
+ * ("500000"), so the URL params and the numeric filter stay plain numbers. When a currency is
+ * selected its symbol ("USD" / "$") is shown as a prefix.
+ */
+function PriceInput({ label, value, onChange, currency, placeholder }: {
+  label: string; value: string; onChange: (digits: string) => void; currency: string; placeholder: string;
+}) {
+  const prefix = currency === 'USD' ? 'USD' : currency === 'ARS' ? '$' : '';
+  return (
+    <div>
+      <label className="block text-xs font-medium text-gray-600 mb-1.5">{label}</label>
+      <div className="relative">
+        {prefix && (
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-ink-soft pointer-events-none">
+            {prefix}
+          </span>
+        )}
+        <input
+          type="text"
+          inputMode="numeric"
+          autoComplete="off"
+          value={value ? formatNumber(Number(value)) : ''}
+          onChange={e => onChange(e.target.value.replace(/\D/g, '').slice(0, 12))}
+          placeholder={placeholder}
+          className={`w-full py-2.5 pr-3 bg-white/90 border border-stone-300/60 shadow-sm rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#e07b2a]/30 focus:border-[#e07b2a] transition-all ${prefix === 'USD' ? 'pl-11' : prefix ? 'pl-7' : 'pl-3'}`}
+        />
       </div>
     </div>
   );

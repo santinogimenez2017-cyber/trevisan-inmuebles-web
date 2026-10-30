@@ -63,6 +63,9 @@ export default function PropertyDetailPage() {
     );
   }
 
+  // "Casa en venta 6 ambientes (USD 250.000)" — price formatted like the cards; omitted for "Consultar precio".
+  const interest = property.price > 0 ? `${property.title} (${formatPropertyPrice(property)})` : property.title;
+
   const related = properties
     .filter(p => p.id !== property.id && (p.type === property.type || (!!property.neighborhood && p.neighborhood === property.neighborhood)))
     .slice(0, 3);
@@ -257,7 +260,7 @@ export default function PropertyDetailPage() {
 
                 <div className="mt-5 space-y-3">
                   <motion.a
-                    href={whatsappUrl(`Hola, me interesa la propiedad: ${property.title}`)}
+                    href={whatsappUrl(`Hola, me interesa la propiedad: ${interest}`)}
                     onClick={() => trackWhatsAppClick(property.slug, property.title)}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -283,7 +286,7 @@ export default function PropertyDetailPage() {
               </div>
 
               {/* Inline contact form */}
-              <ContactSidebar title={property.title} />
+              <ContactSidebar interest={interest} />
             </div>
           </motion.div>
         </div>
@@ -325,10 +328,10 @@ function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string
   );
 }
 
-function ContactSidebar({ title }: { title: string }) {
+function ContactSidebar({ interest }: { interest: string }) {
   const [name, setName]       = useState('');
   const [email, setEmail]     = useState('');
-  const [message, setMessage] = useState(`Hola, me interesa la propiedad: ${title}. ¿Podrían contactarme?`);
+  const [message, setMessage] = useState(`Hola, me interesa la propiedad: ${interest}. ¿Podrían contactarme?`);
   const [sent, setSent]       = useState(false);
 
   if (sent) {

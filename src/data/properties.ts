@@ -49,9 +49,20 @@ export function locationLabel(p: Pick<Property, 'neighborhood' | 'city'>): strin
   return [p.neighborhood, p.city].filter(Boolean).join(', ');
 }
 
+const NUMBER_FORMAT = new Intl.NumberFormat('es-AR');
+
+/** 1234567 → "1.234.567" (es-AR: dot as thousands separator). */
+export const formatNumber = (n: number): string => NUMBER_FORMAT.format(n);
+
+/** Amount with its currency symbol: "USD 600.000" / "$ 29.239.492". Without a currency, just the number. */
+export function formatAmount(n: number, currency?: Currency): string {
+  const num = formatNumber(n);
+  return currency ? `${currency === 'USD' ? 'USD' : '$'} ${num}` : num;
+}
+
 export function formatPrice(p: Pick<Property, 'price' | 'currency' | 'operation'>): string {
   if (!p.price) return 'Consultar precio';
-  const amount = `${p.currency === 'USD' ? 'USD' : '$'} ${p.price.toLocaleString('es-AR')}`;
+  const amount = formatAmount(p.price, p.currency);
   return p.operation === 'alquiler' ? `${amount}/mes` : amount;
 }
 
