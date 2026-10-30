@@ -3,18 +3,16 @@
 Sitio web inmobiliario de **Trevisan Inmuebles** (Roque González 1137, N3300 Posadas, Misiones, Argentina).
 Catálogo público de propiedades en venta y alquiler, con un panel de administración (`/admin`) para cargar, editar y despublicar propiedades y para leer las consultas recibidas, sin tocar código.
 
-> Este documento describe el estado de la rama `main` posterior al commit `572af63` (subida de fotos al Storage), incluyendo: persistencia de consultas en Supabase, aviso por email con Resend, `whatsapp_click` en el Navbar y variables de entorno centralizadas para GTM/GA4. Las cifras de build se midieron con `npm run build` sobre ese código. Donde algo **no existe** en el código, se indica expresamente.
+> **Fuente de verdad del proyecto.** Describe el estado de la rama `main` en el commit `a81ddc7` (consultas en Supabase + email con Resend + `whatsapp_click` en el Navbar + GTM/GA4 por variables de entorno). Las cifras de build se midieron con `npm run build` sobre ese código. Donde algo **no existe** en el código, o **no fue verificado**, se indica expresamente (ver la sección 8). Si cambiás rutas, hooks, el esquema de la base, eventos o variables de entorno, actualizá este archivo en el mismo commit.
 >
-> **Historial de cambios recientes**
-> | Cambio | Detalle |
+> **Historial de cambios**
+> | Commit | Cambio |
 > |---|---|
-> | Subida de fotos | Bucket `property-images` + dropzone en el admin (`572af63`) |
-> | Consultas en Supabase | Tabla `contacts` con RLS (visitantes solo insertan) y pestaña **Consultas** en `/admin` |
-> | Email transaccional | Función serverless `api/contact.ts` (Resend) que avisa cada consulta a `VITE_CONTACT_EMAIL`; la tabla `contacts` queda como respaldo |
-> | Analítica | `whatsapp_click` también en el Navbar; `VITE_GTM_ID` y `VITE_GA4_ID` leídos solo en `vite.config.ts`, con validación de formato |
-> | Documentación | `README.md` reescrito; `.env.example` completo |
+> | `eb122cb` | Panel `/admin`: login con Supabase Auth, tabla `admins`, RLS, alta/edición/estado/borrado de propiedades |
+> | `572af63` | Subida de fotos: bucket público `property-images`, dropzone con miniaturas, reordenar, quitar, portada |
+> | `a81ddc7` | **Consultas:** tabla `contacts` con RLS (los visitantes solo insertan) y pestaña **Consultas** en `/admin` · **Email:** función serverless `api/contact.ts` (Resend) que avisa cada consulta a `VITE_CONTACT_EMAIL`, con `contacts` como respaldo · **Analítica:** `whatsapp_click` en el Navbar, `VITE_GTM_ID` y `VITE_GA4_ID` leídos solo en `vite.config.ts` con validación de formato · `README.md` reescrito y `.env.example` completo |
 >
-> Pendiente de revisar en cada despliegue: ver la sección 7.
+> **Índice rápido:** rutas → 3.1 · hooks y funciones de datos → 3.2 · flujo de una consulta → 3.4 · tablas y RLS → 4 · eventos → 5 · bundle → 6 · despliegue → 7 · qué está verificado → 8.
 
 ---
 
@@ -96,6 +94,12 @@ Las `VITE_*` se leen en **build time**: tras cambiarlas en Vercel hay que redesp
 
 ```
 Trevisan 3D/
+├── package.json / package-lock.json
+├── tsconfig.json / tsconfig.app.json / tsconfig.node.json   # node.json también revisa vite.config.ts y api/
+├── .oxlintrc.json              # Reglas de oxlint
+├── .env.example                # Plantilla de variables de entorno (la real, .env.local, no se versiona)
+├── README.md                   # Guía de puesta en marcha para desarrolladores
+├── PROJECT_SUMMARY.md          # Este documento
 ├── index.html                  # Snippets GTM y GA4, fuentes, metadatos OG
 ├── vite.config.ts              # React + Tailwind + plugin trevisan-analytics + alias @
 ├── vercel.json                 # Rewrite SPA (excluye /api) + caché inmutable de /assets
@@ -196,9 +200,19 @@ Anclas de la home: `/#nosotros`, `/#contacto`. Cambios de ruta vuelven al tope, 
 | `getSupabase()` | No persiste (`persistSession: false`) → siempre rol `anon` | Sitio público |
 | `getAdminSupabase()` | Persiste en localStorage (`storageKey: 'trevisan-admin-auth'`) | Panel admin: las escrituras llevan el JWT del usuario |
 
-- Timeout de 8 s en las lecturas públicas (`run()`); errores normalizados a `Error`.
+- Timeout de 8 s en las lecturas públicas y en `submitContact` (`run()`); errores normalizados a `Error`.
 - Las filas se traducen a `Property` con `toProperty()`: los componentes nunca ven el esquema snake_case. Se descartan las filas sin imágenes.
 - Si faltan `slug` o `neighborhood`, se calculan (slug desde el título + 8 caracteres del `id`; barrio desde `location`).
+
+**Funciones de datos que no son hooks** (se llaman desde manejadores de eventos):
+
+| Función | Archivo | Qué hace |
+|---|---|---|
+| `fetchAvailableProperties()` / `fetchPropertyBySlug(slug)` | `lib/supabase.ts` | Lecturas públicas (cliente `anon`) que alimentan los hooks |
+| `submitContact(c)` | `lib/supabase.ts` | INSERT en `contacts` con el cliente `anon` (la RLS solo permite insertar) |
+| `sendContact(c)` | `lib/contact.ts` | Punto único de los dos formularios: `submitContact` + `POST /api/contact` en paralelo; ver 3.4 |
+| `trackWhatsAppClick`, `trackPropertySearch`, `trackFormSubmit` | `lib/analytics.ts` | Eventos de analítica; ver 5.3 |
+| `fetchAllProperties`, `saveProperty`, `setPropertyStatus`, `deleteProperty`, `uploadPropertyImage`, `fetchContacts`, `setContactStatus`, `deleteContact` | `pages/admin/api.ts` | Capa de datos del admin (cliente autenticado); ver 3.3 |
 
 ### 3.3 Capa de datos del admin (`pages/admin/api.ts`)
 
@@ -219,6 +233,7 @@ Visitante envía el formulario
 - **Campo "interés":** solo existe en el formulario de la home. En la tabla `contacts` no tiene columna propia y se guarda al inicio del mensaje (por ejemplo `[Comprar una propiedad]`); en el email va como fila aparte.
 - **Función `api/contact.ts`:** el destinatario sale únicamente de `VITE_CONTACT_EMAIL` (el endpoint no puede usarse para escribirle a terceros). Valida nombre y email, limita el largo de cada campo, rechaza enlaces que no sean `http(s)`, escapa el HTML y neutraliza saltos de línea en el asunto. Responde `503` si falta `RESEND_API_KEY` o `VITE_CONTACT_EMAIL`, `400` ante datos inválidos y `502` si Resend rechaza el envío.
 - **Timeout:** el pedido al email se aborta a los 10 s para no dejar el formulario colgado.
+- **Desarrollo local:** con `npm run dev` Vite no sirve la carpeta `api/`, por lo que `/api/contact` falla y la consulta se guarda solo en Supabase (el formulario igual confirma). Para probar el email en local hace falta ejecutar el proyecto con la CLI de Vercel (`vercel dev`) y las variables de entorno cargadas.
 - **Anti-abuso:** el endpoint no tiene límite de frecuencia ni captcha. Es una mejora pendiente (ver 6.3).
 
 ---
@@ -434,7 +449,8 @@ Cada evento se empuja a `window.dataLayer` (se crea si no existe, por lo que no 
 ### 6.3 Oportunidades de mejora (no implementadas)
 
 - Las imágenes del hero y del catálogo original se sirven a resolución completa; no hay `srcset` ni redimensionado en el servidor (Supabase Storage admite transformaciones en planes que las incluyan).
-- El chunk `index-*.js` (283 kB) concentra gran parte del peso inicial; revisar qué parte de framer-motion y de la home podría diferirse.
+- El chunk `index-*.js` (285 kB) concentra gran parte del peso inicial; revisar qué parte de framer-motion y de la home podría diferirse.
+- Resolver los 3 warnings de lint existentes (ver sección 8).
 - Proteger `/api/contact` y el INSERT público de `contacts` contra spam (captcha o límite de frecuencia): hoy solo hay validación y límites de largo.
 - Verificar un dominio propio en Resend y definir `RESEND_FROM`; con el remitente de prueba los correos solo llegan a la casilla del dueño de la cuenta de Resend.
 - Integrar un CRM o notificación adicional (por ejemplo WhatsApp) si el volumen de consultas lo justifica.
@@ -450,3 +466,32 @@ Cada evento se empuja a `window.dataLayer` (se crea si no existe, por lo que no 
 5. **Atender consultas:** llegan por email y quedan en `/admin` → Consultas, donde se marcan como leído / respondido / archivado.
 6. **Si el email no está configurado**, el sitio sigue funcionando: la consulta se guarda en Supabase y el visitante ve la confirmación (el aviso por email simplemente no se envía).
 7. **Seguridad:** la clave `anon` es pública por diseño; toda escritura está protegida por RLS + `is_admin()`. La `RESEND_API_KEY` es secreta y nunca debe tener prefijo `VITE_`. No incluir nunca la `service_role` en el front.
+
+---
+
+## 8. Estado de verificación y pendientes
+
+**Verificado** (sobre el commit `a81ddc7`)
+
+| Qué | Cómo |
+|---|---|
+| Compila y tipa | `npm run build` (`tsc -b && vite build`) sin errores, incluyendo `api/contact.ts` |
+| Lint | `npm run lint`: 0 errores y 3 warnings preexistentes (`react/purity` en `Footer.tsx`; `react/set-state-in-effect` en `Navbar.tsx` y `ListingsPage.tsx`) |
+| IDs de analítica | Build con IDs válidos, vacíos e inválidos: se inyectan, se omiten o se ignoran con aviso, según corresponda |
+| Función `api/contact.ts` | Probada con un `fetch` simulado: respuesta 200, destinatario y `Reply-To`, escape de HTML, y errores 400 (email, nombre, JSON, enlace), 502 (Resend rechaza) y 503 (sin clave) |
+| Secretos | Ninguna referencia a `RESEND_API_KEY`, `api.resend.com` ni `CONTACT_EMAIL` en `dist/` |
+
+**No verificado** (requiere el entorno real; no se probó de punta a punta)
+
+- Envío real de un email con Resend (cuenta, API key y dominio del cliente).
+- Que las políticas RLS de `contacts` funcionen contra el proyecto de Supabase real (el SQL se escribió y se revisó, pero esta tabla no fue ejecutada ni probada allí por quien documenta).
+- El formulario de la home y el de la ficha enviando contra Supabase y contra `/api/contact` ya desplegados.
+- La pestaña **Consultas** del admin con datos reales.
+- Que el rewrite de `vercel.json` (`/((?!api/).*)`) deje pasar `/api/contact` en el despliegue real de Vercel.
+
+**Pendientes conocidos**
+
+- Variables de entorno en Vercel: `VITE_CONTACT_EMAIL`, `RESEND_API_KEY` y, con dominio verificado, `RESEND_FROM`; más `VITE_GTM_ID` y/o `VITE_GA4_ID`.
+- Ejecutar de nuevo `supabase_schema.sql` en Supabase para crear la tabla `contacts` y sus políticas.
+- Protección anti-spam en `/api/contact` y en el INSERT público de `contacts`.
+- IDs reales de GTM y GA4 (esta documentación solo registra los placeholders).
