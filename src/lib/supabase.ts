@@ -8,7 +8,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Currency, Property, PropertyOperation, PropertyType } from '@/data/properties';
 
-const URL = import.meta.env.VITE_SUPABASE_URL;
+// Accepts the bare project URL or a pasted REST endpoint (".../rest/v1/"): the SDK appends /rest/v1 itself.
+const URL = import.meta.env.VITE_SUPABASE_URL?.trim().replace(/\/+$/, '').replace(/\/rest\/v1$/, '');
 const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const REQUEST_TIMEOUT_MS = 4000;
 
