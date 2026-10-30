@@ -8,7 +8,7 @@
 create table if not exists public.properties (
   id            uuid primary key default gen_random_uuid(),
   title         text        not null,
-  slug          text,                                          -- optional; generated from the title when empty
+  slug          text,                                          -- optional; a trigger generates it from the title when empty
   operation     text        not null check (operation in ('venta', 'alquiler')),
   property_type text        not null check (property_type in ('casa', 'departamento', 'terreno', 'local', 'ph', 'oficina')),
   price         numeric     not null default 0,                -- 0 = "Consultar precio"
@@ -22,7 +22,7 @@ create table if not exists public.properties (
   description   text        not null default '',
   images        text[]      not null default '{}',             -- public image URLs; the first one is the cover
   featured      boolean     not null default false,
-  status        text        not null default '',               -- badge text, e.g. 'A estrenar', 'En pozo'
+  status        text        not null default 'disponible',     -- the site only shows 'disponible'; use e.g. 'reservado' / 'vendido' / 'alquilado' to hide a listing
   created_at    timestamptz not null default now()
 );
 
@@ -40,7 +40,11 @@ end $$;
 alter table public.properties add column if not exists slug         text;
 alter table public.properties add column if not exists address      text;
 alter table public.properties add column if not exists covered_area numeric;
-alter table public.properties add column if not exists status       text not null default '';
+alter table public.properties add column if not exists status       text not null default 'disponible';
+
+-- status is now the publication state (the site filters status = 'disponible'): empty values become 'disponible'.
+update public.properties set status = 'disponible' where status is null or btrim(status) = '';
+alter table public.properties alter column status set default 'disponible';
 
 -- bedrooms / bathrooms / total_area were nullable in the first version: normalise, then enforce defaults.
 update public.properties set bedrooms   = 0 where bedrooms   is null;
@@ -53,7 +57,28 @@ alter table public.properties alter column bathrooms  set not null;
 alter table public.properties alter column total_area set default 0;
 alter table public.properties alter column total_area set not null;
 
+-- Slug: generated from the title (+ 8 chars of the id) whenever it is left empty, so every listing has a unique URL.
+create or replace function public.properties_set_slug() returns trigger
+language plpgsql as $$
+begin
+  if new.slug is null or btrim(new.slug) = '' then
+    new.slug := trim(both '-' from regexp_replace(
+                  lower(translate(new.title, 'áéíóúüñÁÉÍÓÚÜÑ', 'aeiouunAEIOUUN')), '[^a-z0-9]+', '-', 'g'))
+                || '-' || substr(new.id::text, 1, 8);
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists properties_set_slug on public.properties;
+create trigger properties_set_slug
+  before insert or update of slug on public.properties
+  for each row execute function public.properties_set_slug();
+
+-- Backfill rows that were created without a slug (fires the trigger).
+update public.properties set slug = null where slug is null or btrim(slug) = '';
+
 create index if not exists properties_created_at_idx on public.properties (created_at desc);
+create index if not exists properties_status_idx on public.properties (status);
 create unique index if not exists properties_slug_key on public.properties (slug) where slug is not null and slug <> '';
 
 -- Row Level Security: anyone (anon key) can READ; only the dashboard / service_role can write.
@@ -73,4 +98,4 @@ create policy "Public read access"
 --   ('Casa moderna con pileta', 'casa-moderna-con-pileta', 'venta', 'casa', 185000, 'USD', 'Villa Cabello, Posadas',
 --    'Av. Ejemplo 1234', 3, 2, 180, 240, 'Casa de tres dormitorios con pileta y quincho.',
 --    array['https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1600&q=85'],
---    true, 'A estrenar');
+--    true, 'disponible');

@@ -90,31 +90,69 @@ function toProperty(r: PropertyRow): Property {
     features: [],
     images: r.images ?? [],
     featured: r.featured ?? false,
-    status: r.status || undefined,
+    // `status` in the DB is the publication state ('disponible'), not the card badge text: not mapped.
     createdAt: r.created_at ?? new Date().toISOString(),
   };
 }
 
+/** Publication state that makes a row visible on the site. */
+const AVAILABLE = 'disponible';
+
+/** Rejects with a plain Error (Supabase errors are not `Error` instances) and enforces the timeout. */
+async function run<T>(query: () => Promise<T>): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error('Supabase request timed out')), REQUEST_TIMEOUT_MS);
+  });
+  try {
+    return await Promise.race([query(), timeout]);
+  } catch (err) {
+    throw err instanceof Error ? err : new Error((err as { message?: string })?.message ?? 'Supabase request failed');
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /**
- * Listings entered manually in Supabase, mapped to the app's `Property` shape.
- * Never throws: returns [] when Supabase is not configured, slow (> 4 s) or failing.
+ * Available listings (status = 'disponible'), newest first, mapped to the app's `Property` shape.
+ * Rejects when Supabase is not configured, slow (> 4 s) or failing.
+ */
+export function fetchAvailableProperties(): Promise<Property[]> {
+  return run(async () => {
+    const sb = await getSupabase();
+    const { data, error } = await sb
+      .from('properties')
+      .select('*')
+      .eq('status', AVAILABLE)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return (data as PropertyRow[]).filter(r => r.images && r.images.length > 0).map(toProperty);
+  });
+}
+
+/** One available listing by its slug, or `null` when it does not exist. Rejects like the above. */
+export function fetchPropertyBySlug(slug: string): Promise<Property | null> {
+  return run(async () => {
+    const sb = await getSupabase();
+    const { data, error } = await sb
+      .from('properties')
+      .select('*')
+      .eq('slug', slug)
+      .eq('status', AVAILABLE)
+      .maybeSingle();
+    if (error) throw error;
+    return data ? toProperty(data as PropertyRow) : null;
+  });
+}
+
+/**
+ * Same as `fetchAvailableProperties()` but never throws: returns [] when Supabase is not configured,
+ * slow or failing, so the site falls back to the local JSON (used by `loadProperties()`).
  */
 export async function fetchCustomProperties(): Promise<Property[]> {
   if (!isSupabaseConfigured) return [];
   try {
-    const query = async () => {
-      const sb = await getSupabase();
-      const { data, error } = await sb
-        .from('properties')
-        .select('*')
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      return (data as PropertyRow[]).filter(r => r.images && r.images.length > 0).map(toProperty);
-    };
-    const timeout = new Promise<Property[]>((_, reject) =>
-      setTimeout(() => reject(new Error('Supabase request timed out')), REQUEST_TIMEOUT_MS),
-    );
-    return await Promise.race([query(), timeout]);
+    return await fetchAvailableProperties();
   } catch (err) {
     if (import.meta.env.DEV) console.warn('[supabase] custom properties unavailable:', err);
     return [];
