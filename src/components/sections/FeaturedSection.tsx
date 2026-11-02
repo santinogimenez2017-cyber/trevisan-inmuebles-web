@@ -150,10 +150,12 @@ function FeaturedCard({ property }: { property: Property }) {
       whileHover={{ y: -8 }}
       transition={{ type: 'spring', stiffness: 280, damping: 20 }}
       className="group"
+      style={{ touchAction: 'manipulation' }}
     >
       <Link
         to={`/propiedad/${property.slug}`}
-        className="block bg-white/90 rounded-2xl overflow-hidden border border-stone-300/60 shadow-md hover:shadow-xl hover:border-[#e07b2a]/50 transition-[box-shadow,border-color] duration-300"
+        style={{ touchAction: 'manipulation' }}
+        className="block bg-white/90 rounded-2xl overflow-hidden border border-stone-300/60 shadow-md hover:shadow-xl hover:border-[#e07b2a]/50 transition-[box-shadow,border-color] duration-300 cursor-pointer select-none"
       >
         {/* ── Image container — clipped, oversized inner div for parallax ── */}
         <div className="relative overflow-hidden aspect-[4/3]">
@@ -177,20 +179,20 @@ function FeaturedCard({ property }: { property: Property }) {
 
           {/* ── Badge plane — floats above image, moves faster (foreground) ── */}
           <motion.div
-            className="absolute top-3 left-3 flex gap-2"
+            className="absolute top-3 left-3 flex gap-2 pointer-events-none"
             style={{ y: badgeY, willChange: 'transform' }}
           >
-            <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider
+            <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide
               ${property.operation === 'venta' ? 'bg-ink text-white' : 'bg-accent text-white'}`}>
               {property.operation}
             </span>
-            <span className="px-3 py-1 rounded-full text-[10px] font-bold bg-white/80 text-ink uppercase tracking-wider backdrop-blur-md border border-stone-300/60">
+            <span className="px-3 py-1 rounded-full text-[10px] font-bold bg-white/80 text-ink uppercase tracking-wide backdrop-blur-md border border-stone-300/60">
               {TYPE[property.type] ?? property.type}
             </span>
           </motion.div>
 
           {/* Price — static overlay, no parallax needed */}
-          <div className="absolute left-3 bottom-3 bg-white/85 backdrop-blur-md border border-stone-300/60 rounded-xl px-3 py-1.5 shadow-sm shadow-stone-900/5">
+          <div className="absolute left-3 bottom-3 bg-white/85 backdrop-blur-md border border-stone-300/60 rounded-xl px-3 py-1.5 shadow-sm shadow-stone-900/5 pointer-events-none">
             <p className="text-ink font-bold text-lg">{formatPrice()}</p>
           </div>
         </div>
