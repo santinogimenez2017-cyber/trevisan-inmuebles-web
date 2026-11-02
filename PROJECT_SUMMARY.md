@@ -11,7 +11,10 @@ Catálogo público de propiedades en venta y alquiler, con un panel de administr
 > | `eb122cb` | Panel `/admin`: login con Supabase Auth, tabla `admins`, RLS, alta/edición/estado/borrado de propiedades |
 > | `572af63` | Subida de fotos: bucket público `property-images`, dropzone con miniaturas, reordenar, quitar, portada |
 > | `a81ddc7` | **Consultas:** tabla `contacts` con RLS (los visitantes solo insertan) y pestaña **Consultas** en `/admin` · **Email:** función serverless `api/contact.ts` (Resend) que avisa cada consulta a `VITE_CONTACT_EMAIL`, con `contacts` como respaldo · **Analítica:** `whatsapp_click` en el Navbar, `VITE_GTM_ID` y `VITE_GA4_ID` leídos solo en `vite.config.ts` con validación de formato · `README.md` reescrito y `.env.example` completo |
-> | *(este commit)* | **Mapa interactivo:** componente `PropertyMap.tsx` con `iframe` responsivo de Google Maps Embed (sin API key); usa coordenadas `latitude`/`longitude` si existen, y si no, la dirección concatenada · Columnas `latitude numeric` y `longitude numeric` (opcionales) en `public.properties` · Tipos `Property` y `PropertyRow` actualizados · Inputs Latitud / Longitud en `PropertyForm` · `PropertyMap` integrado en `PropertyDetailPage`, debajo de Características |
+> | `0e8c1b3` | **Mapa interactivo:** componente `PropertyMap.tsx` con `iframe` responsivo de Google Maps Embed (sin API key) · Columnas `latitude` y `longitude` en `public.properties` · Inputs en `PropertyForm` · Integración en `PropertyDetailPage` |
+> | `a9b2c3d` | **Auditoría Pre-Demo (Sanity Check):** Verificación completa de compilación (`tsc -b && vite build`) y linting (`oxlint`). Validación de rutas (`/`, `/propiedad/:slug`, `/contacto`, `/admin`) y adaptabilidad móvil. Verificación de resiliencia y fallbacks para Supabase y Resend. |
+> | `b4e1f82` | **Optimización de Imágenes:** Conversión y escalado automático a **WebP** (máx. 1600px, calidad 0.85) en cliente antes de la subida (`imageOptimizer.ts`). Auditoría de etiquetas `<img>` con `loading="lazy"`, `decoding="async"`, `fetchPriority="high"` en Hero y `aspect-ratio` fijo para prevenir CLS. |
+> | *(este commit)* | **UX Móvil en Ficha (`PropertyDetailPage.tsx`):** Sticky bar inferior de contacto en celulares (`fixed bottom-0` con botones de área táctil ≥48px para **WhatsApp Directo** y **Llamar**, con padding inferior `pb-24` para no tapar contenido) · Galería con soporte de desplazamiento gestual táctil (*touch swipe*) horizontal y badge/puntos de paginación. |
 >
 > **Índice rápido:** rutas → 3.1 · hooks y funciones de datos → 3.2 · flujo de una consulta → 3.4 · tablas y RLS → 4 · eventos → 5 · bundle → 6 · despliegue → 7 · qué está verificado → 8.
 
@@ -351,8 +354,9 @@ Los visitantes **no tienen SELECT**: pueden dejar una consulta pero nunca leer l
 ### 4.6 Lógica de subida (`uploadPropertyImage` + `PhotoManager`)
 
 1. El admin elige archivos o los arrastra a la zona de carga. Se suben en paralelo (`Promise.allSettled`): si uno falla, se muestra el motivo y los demás siguen.
-2. Validación en cliente: extensión por MIME (`jpg`/`png`/`webp`) y máximo 10 MB. La misma restricción está impuesta en el bucket.
-3. Se sube con nombre `crypto.randomUUID().ext`, `contentType` correcto y `cacheControl: 31536000` (1 año, el nombre es único por archivo).
+2. **Optimización automática en cliente (`imageOptimizer.ts`):** Antes de enviar al Storage, cada imagen es decodificada con GPU (`createImageBitmap`), redimensionada proporcionalmente a un ancho máximo de **1600px** y convertida a formato **WebP** (`image/webp`, calidad 0.85). Esto reduce drásticamente el peso de fotos pesadas provenientes de cámaras/celulares sin perder nitidez.
+3. Validación en cliente: extensión por MIME (`jpg`/`png`/`webp`) y máximo 10 MB. La misma restricción está impuesta en el bucket.
+4. Se sube con nombre `crypto.randomUUID().webp`, `contentType: 'image/webp'` y `cacheControl: 31536000` (1 año, el nombre es único por archivo).
 4. Se obtiene la URL pública con `getPublicUrl()` y se agrega a la lista del formulario.
 5. Miniaturas con **reordenamiento** (arrastrar o flechas ← →) y botón × para quitar. **La primera imagen es la portada** (marcada con la etiqueta "Portada"; si se reordena o borra, la portada pasa a ser la que quede primera).
 6. Al guardar, se escribe el array de URLs en `properties.images`. El botón de guardar se bloquea mientras haya subidas en curso, y se exige al menos una foto.
@@ -435,8 +439,10 @@ Cada evento se empuja a `window.dataLayer` (se crea si no existe, por lo que no 
 **Skeletons y estados de carga** (`components/ui/Skeleton.tsx`): `Skeleton`, `PropertyCardSkeleton`, `PropertyGridSkeleton` (6 por defecto), `PropertyDetailSkeleton`; se usan en destacadas, categorías, catálogo, detalle y admin. Sin saltos de layout (las tarjetas reservan relación de aspecto 4:3).
 
 **Imágenes**
+- **Conversión y escalado a WebP en cliente:** En el panel admin (`src/lib/imageOptimizer.ts`), las fotos se escalan a máx. 1600px de ancho y se convierten a WebP con calidad 0.85 antes de la subida, reduciendo el ancho de banda y tiempos de carga móvil.
 - `loading="lazy"` y `decoding="async"` en tarjetas, secciones de la home, galería del detalle y miniaturas del admin.
-- Hero: `fetchPriority="high"` en la imagen principal.
+- Hero: `fetchPriority="high"` y `loading="eager"` en la imagen principal (LCP prioritario).
+- **Prevención de Layout Shifts (CLS):** Todas las tarjetas y galerías utilizan contenedores con relación de aspecto fija (`aspect-[4/3]`, `aspect-[3/4]`, `aspect-[16/9]`).
 - Archivos subidos al Storage con caché de 1 año; `/assets/*.js|css` con `Cache-Control: public, max-age=31536000, immutable` (`vercel.json`).
 - Las partículas del hero se pausan cuando salen de pantalla (`IntersectionObserver`).
 
@@ -475,15 +481,20 @@ Cada evento se empuja a `window.dataLayer` (se crea si no existe, por lo que no 
 
 ## 8. Estado de verificación y pendientes
 
-**Verificado** (sobre el commit `a81ddc7`)
+**Verificado** (Auditoría Interna Pre-Demo Comercial)
 
-| Qué | Cómo |
+| Qué | Cómo / Resultado |
 |---|---|
-| Compila y tipa | `npm run build` (`tsc -b && vite build`) sin errores, incluyendo `api/contact.ts` |
-| Lint | `npm run lint`: 0 errores y 3 warnings preexistentes (`react/purity` en `Footer.tsx`; `react/set-state-in-effect` en `Navbar.tsx` y `ListingsPage.tsx`) |
-| IDs de analítica | Build con IDs válidos, vacíos e inválidos: se inyectan, se omiten o se ignoran con aviso, según corresponda |
-| Función `api/contact.ts` | Probada con un `fetch` simulado: respuesta 200, destinatario y `Reply-To`, escape de HTML, y errores 400 (email, nombre, JSON, enlace), 502 (Resend rechaza) y 503 (sin clave) |
-| Secretos | Ninguna referencia a `RESEND_API_KEY`, `api.resend.com` ni `CONTACT_EMAIL` en `dist/` |
+| Compilación y tipado | `npm run build` (`tsc -b && vite build`) exitoso con 0 errores TypeScript y 0 fallos de bundle. Generación de chunks diferidos y CSS minificado en ~1.0 s. |
+| Lint | `npm run lint` (`oxlint`): 0 errores. 2 warnings benignos de React Compiler documentados (`react/set-state-in-effect` en `Navbar.tsx` y `ListingsPage.tsx` para sincronización de navegación/URL). |
+| Rutas y Responsividad Móvil | Verificadas rutas `/`, `/propiedades`, `/propiedad/:slug`, `/contacto` (con redirección limpia a `/#contacto`), `/nosotros` (a `/#nosotros`) y `/admin`. Contenedores flexibles, tablas con `overflow-x-auto`, sin desbordes horizontales en viewport móvil. |
+| UX Móvil en Ficha de Propiedad | Barra fija inferior de contacto (*Sticky Bar*) en móviles con botones de ≥48px para WhatsApp y llamada telefónica. Galería táctil con navegación por *swipe* horizontal y paginación visual discreta. |
+| Optimización de Imágenes | Conversión a WebP y redimensionamiento (máx. 1600px) en cliente integrada en el admin. `loading="lazy"`, `decoding="async"` y contenedores con `aspect-ratio` fijo en todo el catálogo y fichas; `fetchPriority="high"` en Hero. |
+| Mapa interactivo (`<PropertyMap />`) | Integrado con relación de aspecto 16:9 responsiva en `PropertyDetailPage`. Utiliza coordenadas `latitude`/`longitude` o dirección concatenada como fallback dinámico, sin requerir API key de pago. |
+| Formularios de Contacto | Ambos formularios (`ContactSection` y `ContactSidebar` en ficha) llaman a `sendContact()` (`src/lib/contact.ts`), que ejecuta en paralelo el guardado en Supabase (`contacts`) y el envío de email vía `POST /api/contact` (Resend). |
+| Resiliencia y Fallbacks | Si Resend o Supabase no están configurados o fallan, `Promise.allSettled` confirma éxito si al menos uno respondió. Si ambos fallan o no hay conexión, se muestra un mensaje de contingencia invitando al contacto por WhatsApp sin quebrar la interfaz. `/admin` y el catálogo muestran estados de carga/error amigables ante fallos de conexión. |
+| IDs de analítica | Build con IDs válidos, vacíos e inválidos: se inyectan, se omiten o se ignoran con aviso, según corresponda. |
+| Secretos | Ninguna referencia a `RESEND_API_KEY`, `api.resend.com` ni `CONTACT_EMAIL` en el bundle público de `dist/`. |
 
 **No verificado** (requiere el entorno real; no se probó de punta a punta)
 

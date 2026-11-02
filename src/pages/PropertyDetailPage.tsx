@@ -31,6 +31,8 @@ export default function PropertyDetailPage() {
   const [activeImage, setActiveImage] = useState(0);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [copied, setCopied]  = useState(false);
+  const touchStartX = React.useRef<number | null>(null);
+  const touchStartY = React.useRef<number | null>(null);
 
   useEffect(() => { scrollToTop(); }, [slug]);
 
@@ -80,7 +82,7 @@ export default function PropertyDetailPage() {
   };
 
   return (
-    <div className="min-h-screen bg-paper pt-16 lg:pt-20">
+    <div className="min-h-screen bg-paper pt-16 lg:pt-20 pb-24 lg:pb-0">
       {/* Breadcrumb */}
       <motion.div
         className="bg-linen px-4 py-3 border-b border-gray-100"
@@ -118,8 +120,29 @@ export default function PropertyDetailPage() {
               transition={{ duration: 0.6, ease: EXPO }}
             >
               <div
-                className="aspect-[16/9] relative overflow-hidden bg-gray-100 cursor-zoom-in"
+                className="aspect-[16/9] relative overflow-hidden bg-gray-100 cursor-zoom-in touch-pan-y"
                 onClick={() => setLightboxIndex(activeImage)}
+                onTouchStart={e => {
+                  touchStartX.current = e.touches[0].clientX;
+                  touchStartY.current = e.touches[0].clientY;
+                }}
+                onTouchEnd={e => {
+                  const startX = touchStartX.current;
+                  const startY = touchStartY.current;
+                  touchStartX.current = null;
+                  touchStartY.current = null;
+                  if (startX === null || startY === null || property.images.length <= 1) return;
+                  const dx = e.changedTouches[0].clientX - startX;
+                  const dy = e.changedTouches[0].clientY - startY;
+                  // Horizontal swipe detection (min 40px and dominant over vertical scroll)
+                  if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
+                    if (dx < 0) {
+                      setActiveImage(i => (i + 1) % property.images.length);
+                    } else {
+                      setActiveImage(i => (i - 1 + property.images.length) % property.images.length);
+                    }
+                  }
+                }}
               >
                 <AnimatePresence mode="wait">
                   <motion.img
@@ -127,7 +150,7 @@ export default function PropertyDetailPage() {
                     layoutId={activeImage === 0 ? `property-img-${property.slug}` : undefined}
                     src={property.images[activeImage]}
                     alt={`${property.title} — imagen ${activeImage + 1}`}
-                    className="img-crisp w-full h-full object-cover"
+                    className="img-crisp w-full h-full object-cover select-none pointer-events-none"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
@@ -156,11 +179,23 @@ export default function PropertyDetailPage() {
                     >
                       <ChevronRight size={18} />
                     </motion.button>
+
+                    {/* Mobile dots pagination */}
+                    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-black/40 backdrop-blur-md px-2.5 py-1 rounded-full sm:hidden">
+                      {property.images.map((_, i) => (
+                        <span
+                          key={i}
+                          className={`h-1.5 rounded-full transition-all duration-300 ${i === activeImage ? 'w-4 bg-white' : 'w-1.5 bg-white/50'}`}
+                        />
+                      ))}
+                    </div>
                   </>
                 )}
-                <div className="absolute bottom-3 right-3 flex items-center gap-1.5 bg-white/80 text-ink border border-stone-300/60 text-xs px-3 py-1 rounded-full backdrop-blur-md">
+
+                {/* Discrete pagination badge */}
+                <div className="absolute bottom-3 right-3 flex items-center gap-1.5 bg-black/60 text-white border border-white/10 text-xs px-3 py-1 rounded-full backdrop-blur-md font-medium shadow-sm">
                   <Maximize2 size={11} aria-hidden="true" />
-                  {activeImage + 1} / {property.images.length}
+                  <span>{activeImage + 1} / {property.images.length}</span>
                 </div>
               </div>
 
@@ -310,6 +345,32 @@ export default function PropertyDetailPage() {
             </div>
           </motion.div>
         )}
+      </div>
+
+      {/* Mobile Sticky Contact Bar */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 lg:hidden bg-paper/95 backdrop-blur-xl border-t border-stone-300/80 px-4 py-3 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
+        <div className="max-w-md mx-auto flex items-center gap-3">
+          <motion.a
+            href={whatsappUrl(`Hola, me interesa la propiedad: ${interest}`)}
+            onClick={() => trackWhatsAppClick(property.slug, property.title)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn-shimmer flex-1 flex items-center justify-center gap-2 bg-[#157347] text-white font-semibold h-12 rounded-xl text-sm shadow-sm"
+            whileTap={{ scale: 0.97 }}
+          >
+            <MessageCircle size={18} />
+            <span>WhatsApp Directo</span>
+          </motion.a>
+          <motion.a
+            href={PHONE_TEL}
+            className="btn-shimmer flex items-center justify-center gap-2 bg-ink text-white font-medium h-12 px-5 rounded-xl text-sm shadow-sm"
+            whileTap={{ scale: 0.97 }}
+            aria-label="Llamar al asesor"
+          >
+            <Phone size={18} />
+            <span>Llamar</span>
+          </motion.a>
+        </div>
       </div>
 
       <Lightbox

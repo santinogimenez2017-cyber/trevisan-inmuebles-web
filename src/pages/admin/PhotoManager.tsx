@@ -69,7 +69,7 @@ export function PhotoManager({ images, onChange, onBusyChange }: {
             className="px-4 py-2 rounded-xl border border-stone-300 bg-white text-ink text-sm font-medium hover:border-[#e07b2a] transition-colors">
             Elegir fotos
           </button>
-          <span>o arrastralas acá (JPG, PNG, WEBP · máx. 10 MB). La primera es la portada.</span>
+          <span>o arrastralas acá (JPG, PNG, WEBP · convertidas a WebP máx. 1600px). La primera es la portada.</span>
         </div>
 
         {(images.length > 0 || pending > 0) && (

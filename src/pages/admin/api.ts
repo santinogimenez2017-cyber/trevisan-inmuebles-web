@@ -2,6 +2,7 @@
 // the RLS policies in supabase_schema.sql (public.is_admin()). Errors are plain `Error`s with a readable message.
 
 import { getAdminSupabase, type PropertyRow } from '@/lib/supabase';
+import { optimizeImageForUpload } from '@/lib/imageOptimizer';
 
 export const STATUSES = ['disponible', 'reservado', 'vendido', 'alquilado'] as const;
 export type Status = (typeof STATUSES)[number];
@@ -69,11 +70,18 @@ export const IMAGE_BUCKET = 'property-images';
 export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const IMAGE_EXT: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
 
-/** Uploads one JPG / PNG / WEBP to the bucket and returns its public URL. */
-export async function uploadPropertyImage(file: File): Promise<string> {
-  const ext = IMAGE_EXT[file.type];
-  if (!ext) fail(`"${file.name}": solo se aceptan JPG, PNG o WEBP.`);
-  if (file.size > MAX_IMAGE_BYTES) fail(`"${file.name}" supera los 10 MB.`);
+/** Uploads one JPG / PNG / WEBP to the bucket and returns its public URL.
+ * Automatically resizes to max 1600px width and converts to WebP before uploading.
+ */
+export async function uploadPropertyImage(rawFile: File): Promise<string> {
+  const initialExt = IMAGE_EXT[rawFile.type];
+  if (!initialExt) fail(`"${rawFile.name}": solo se aceptan JPG, PNG o WEBP.`);
+  if (rawFile.size > MAX_IMAGE_BYTES) fail(`"${rawFile.name}" supera los 10 MB.`);
+
+  // Convert/resize in client to WebP (~1600px max width)
+  const file = await optimizeImageForUpload(rawFile, { maxWidth: 1600, quality: 0.85 });
+  const ext = IMAGE_EXT[file.type] ?? 'webp';
+
   const sb = await getAdminSupabase();
   const path = `${crypto.randomUUID()}.${ext}`;
   const { error } = await sb.storage.from(IMAGE_BUCKET).upload(path, file, { contentType: file.type, cacheControl: '31536000' });

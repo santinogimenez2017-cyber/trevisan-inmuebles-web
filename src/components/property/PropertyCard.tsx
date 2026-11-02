@@ -148,6 +148,7 @@ export function PropertyCard({ property }: { property: Property }) {
               src={property.images[i]}
               alt=""
               aria-hidden="true"
+              loading="lazy"
               decoding="async"
               className={`img-crisp absolute inset-0 w-full h-full object-cover transition-[opacity,transform] duration-300 group-hover:scale-[1.06] ${idx === i ? 'opacity-100' : 'opacity-0'}`}
             />

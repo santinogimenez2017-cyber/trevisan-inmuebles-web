@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { lazy, Suspense, useEffect } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { Navbar } from '@/components/layout/Navbar';
@@ -45,7 +45,7 @@ function Layout() {
   const { pathname } = location;
   const isHome = pathname === '/';
   const isAdmin = pathname === '/admin' || pathname.startsWith('/admin/');
-  const is404 = !isHome && !pathname.startsWith('/propiedades') && !pathname.startsWith('/propiedad/');
+  const is404 = !isHome && !pathname.startsWith('/propiedades') && !pathname.startsWith('/propiedad/') && pathname !== '/contacto' && pathname !== '/nosotros';
 
   // The admin panel is a standalone screen: no site Navbar/Footer, no page transition.
   if (isAdmin) {
@@ -79,6 +79,8 @@ function Layout() {
           <Route path="/propiedad/:slug" element={
             <PageTransition><Suspense fallback={null}><PropertyDetailPage /></Suspense></PageTransition>
           } />
+          <Route path="/contacto" element={<Navigate to="/#contacto" replace />} />
+          <Route path="/nosotros" element={<Navigate to="/#nosotros" replace />} />
           <Route path="*" element={
             <PageTransition><NotFoundPage /></PageTransition>
           } />

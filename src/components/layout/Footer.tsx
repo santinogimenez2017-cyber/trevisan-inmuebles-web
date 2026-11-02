@@ -8,6 +8,7 @@ import { useSectionLink } from '@/lib/useSectionLink';
 
 const MAPS_URL = 'https://www.google.com/maps/search/?api=1&query=Roque+Gonz%C3%A1lez+1137+Posadas+Misiones';
 const WA_URL = whatsappUrl('Hola, quiero consultar sobre una propiedad.');
+const CURRENT_YEAR = new Date().getFullYear();
 
 export function Footer() {
   const toNosotros = useSectionLink('#nosotros');
@@ -142,7 +143,7 @@ export function Footer() {
         {/* Bottom bar */}
         <div className="border-t border-black/10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
           <p className="text-ink-soft text-xs">
-            © {new Date().getFullYear()} Trevisan Inmuebles. Todos los derechos reservados.
+            © {CURRENT_YEAR} Trevisan Inmuebles. Todos los derechos reservados.
           </p>
           <p className="text-ink-soft text-xs">
             Matrícula habilitante — CCPIM · Colegio de Corredores Públicos Inmobiliarios de Misiones
